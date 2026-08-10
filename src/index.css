@@ -1,0 +1,369 @@
+@import "tailwindcss";
+
+html {
+  font-size: 14px !important;
+  background-color: #0e0e11;
+  color: #f4f4f5;
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 12px !important;
+  }
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #0e0e11;
+  color: #f4f4f5;
+}
+
+[dir="rtl"] {
+  font-family: "Cairo", "Tajawal", "Inter", system-ui, sans-serif;
+}
+
+/* Scrollbar premium custom style matching the image's layout */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0e0e11;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ea580c;
+}
+
+
+/* ==========================================================================
+   PREMIUM DARK GOLD THEME OVERRIDES (INSPIRED BY THE LUXURY REFERENCE IMAGE)
+   ========================================================================== */
+
+/* Root, Body & Page Wrappers */
+#managerDashboardUI,
+#clientPortalUI,
+#publicDirectoryUI {
+  background-color: #0b0b0d !important;
+  color: #f4f4f5 !important;
+}
+
+/* Force body / background of layout */
+.min-h-screen.bg-slate-50,
+.bg-slate-50 {
+  background-color: #0b0b0d !important;
+}
+
+/* Cards & Panels */
+#managerDashboardUI .bg-white,
+#clientPortalUI .bg-white,
+#managerDashboardUI aside,
+#clientPortalUI aside,
+#managerDashboardUI .shadow-sm,
+#clientPortalUI .shadow-sm,
+#managerDashboardUI .bg-white.rounded-2xl,
+#clientPortalUI .bg-white.rounded-2xl {
+  background-color: #121214 !important;
+  border-color: rgba(63, 63, 70, 0.6) !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Modals background sheets */
+.fixed.inset-0.bg-black\/50,
+#managerDashboardUI .fixed.inset-0,
+#clientPortalUI .fixed.inset-0 {
+  background-color: rgba(5, 5, 6, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+#managerDashboardUI .bg-white.rounded-3xl,
+#managerDashboardUI .bg-white.rounded-2xl,
+#clientPortalUI .bg-white.rounded-2xl,
+.bg-white.rounded-2xl.max-w-2xl,
+.bg-white.rounded-2xl.max-w-xl,
+.bg-white.rounded-2xl.max-w-lg,
+.bg-white.rounded-2xl.max-w-md,
+.bg-white.p-6.rounded-2xl.border {
+  background-color: #121214 !important;
+  border-color: rgba(82, 82, 91, 0.5) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+  color: #f4f4f5 !important;
+}
+
+/* Text Element Colors */
+#managerDashboardUI h1, #managerDashboardUI h2, #managerDashboardUI h3, #managerDashboardUI h4,
+#clientPortalUI h1, #clientPortalUI h2, #clientPortalUI h3, #clientPortalUI h4,
+#managerDashboardUI .text-slate-800, #clientPortalUI .text-slate-800,
+#managerDashboardUI .text-slate-900, #clientPortalUI .text-slate-900,
+#managerDashboardUI .text-slate-700, #clientPortalUI .text-slate-700,
+#managerDashboardUI label, #clientPortalUI label,
+#managerDashboardUI th, #clientPortalUI th {
+  color: #f4f4f5 !important;
+}
+
+#managerDashboardUI .text-slate-600, #clientPortalUI .text-slate-600,
+#managerDashboardUI .text-slate-500, #clientPortalUI .text-slate-500,
+#managerDashboardUI .text-slate-400, #clientPortalUI .text-slate-400,
+#managerDashboardUI td, #clientPortalUI td {
+  color: #d4d4d8 !important;
+}
+
+#managerDashboardUI .text-slate-300, #clientPortalUI .text-slate-300 {
+  color: #a1a1aa !important;
+}
+
+/* Table styling overrides */
+#managerDashboardUI table, #clientPortalUI table {
+  border-color: rgba(63, 63, 70, 0.4) !important;
+}
+
+#managerDashboardUI tr, #clientPortalUI tr {
+  border-bottom-color: rgba(63, 63, 70, 0.4) !important;
+}
+
+#managerDashboardUI thead tr, #clientPortalUI thead tr {
+  background-color: #18181b !important;
+}
+
+#managerDashboardUI tbody tr:hover, #clientPortalUI tbody tr:hover {
+  background-color: rgba(39, 39, 42, 0.4) !important;
+}
+
+#managerDashboardUI td, #clientPortalUI td {
+  border-color: rgba(63, 63, 70, 0.4) !important;
+}
+
+/* Clickable Link elements and highlight names (to Gold) */
+#managerDashboardUI .text-blue-600,
+#clientPortalUI .text-blue-600,
+#managerDashboardUI .text-indigo-600 {
+  color: #f59e0b !important;
+}
+
+#managerDashboardUI .text-blue-600:hover,
+#clientPortalUI .text-blue-600:hover {
+  color: #fbbf24 !important;
+  text-decoration: underline !important;
+}
+
+/* Inputs and Forms */
+#managerDashboardUI input, #clientPortalUI input,
+#managerDashboardUI select, #clientPortalUI select,
+#managerDashboardUI textarea, #clientPortalUI textarea {
+  background-color: #08080a !important;
+  border-color: rgba(63, 63, 70, 0.8) !important;
+  color: #ffffff !important;
+}
+
+#managerDashboardUI input:focus, #clientPortalUI input:focus,
+#managerDashboardUI select:focus, #clientPortalUI select:focus,
+#managerDashboardUI textarea:focus, #clientPortalUI textarea:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25) !important;
+}
+
+/* Base standard blue buttons -> Gold gradients */
+#managerDashboardUI .bg-blue-600,
+#clientPortalUI .bg-blue-600,
+#managerDashboardUI button[id*="Btn"],
+#clientPortalUI button[id*="Btn"],
+#managerDashboardUI button.bg-blue-600,
+#clientPortalUI button.bg-blue-600 {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 15px -3px rgba(234, 88, 12, 0.4) !important;
+  font-weight: 700 !important;
+}
+
+#managerDashboardUI button:hover,
+#clientPortalUI button:hover {
+  opacity: 0.95;
+}
+
+/* Neutral subtle buttons or tabs */
+#managerDashboardUI .bg-slate-100, #clientPortalUI .bg-slate-100,
+#managerDashboardUI .bg-slate-200, #clientPortalUI .bg-slate-200 {
+  background-color: #1e1e22 !important;
+  color: #e4e4e7 !important;
+}
+
+#managerDashboardUI .bg-slate-50, #clientPortalUI .bg-slate-50 {
+  background-color: #0b0b0d !important;
+}
+
+/* Custom banner alert strips */
+#managerDashboardUI .bg-gradient-to-r.from-blue-50.to-indigo-50,
+#clientPortalUI .bg-gradient-to-r.from-blue-50.to-indigo-50 {
+  background: linear-gradient(135deg, #1d1d21 0%, #151518 100%) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+#managerDashboardUI .bg-gradient-to-r.from-blue-50.to-indigo-50 *,
+#clientPortalUI .bg-gradient-to-r.from-blue-50.to-indigo-50 * {
+  color: #f4f4f5 !important;
+}
+
+/* Account specific detail cards inside balance boxes */
+#clientPortalUI #balancesContainer > div,
+#clientPortalUI .bg-slate-50.p-4.rounded-xl {
+  background-color: #121214 !important;
+  border-color: rgba(63, 63, 70, 0.6) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+#clientPortalUI #balancesContainer h3,
+#clientPortalUI #balancesContainer h4 {
+  color: #f4f4f5 !important;
+}
+
+#clientPortalUI #balancesContainer p {
+  color: #f59e0b !important;
+}
+
+/* Customize toggle switches or checkbox statuses to gold */
+#managerDashboardUI .bg-blue-500,
+#clientPortalUI .bg-blue-500 {
+  background-color: #ea580c !important;
+}
+
+/* File selector box styling */
+#clientPortalUI .border-dashed {
+  border-color: rgba(245, 158, 11, 0.3) !important;
+  background-color: #18181b !important;
+}
+
+/* Specific scaling for Financial Wallet Statement layout and Manager Details modal */
+.manager-details-modal,
+.manager-details-modal h3,
+.manager-details-modal h4,
+.manager-details-modal label,
+.manager-details-modal input,
+.manager-details-modal select,
+.manager-details-modal span,
+.manager-details-modal button,
+.manager-details-modal td,
+.manager-details-modal th {
+  font-size: 20px !important;
+}
+
+.manager-details-modal .wallet-transactions-table,
+.manager-details-modal .wallet-transactions-table th,
+.manager-details-modal .wallet-transactions-table td,
+.manager-details-modal .wallet-transactions-table span {
+  font-size: 20px !important;
+}
+
+/* Custom styling for specific focused buttons */
+.client-action-btn {
+  font-size: 15px !important;
+  width: 52.4375px !important;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  overflow: hidden !important;
+}
+
+/* User-focused layout and alignment rules */
+div#root > div#managerDashboardUI > div:nth-of-type(1) {
+  width: 100% !important;
+  max-width: 1800px !important;
+}
+
+div#root > div#managerDashboardUI > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) {
+  width: 100% !important;
+  max-width: 1200.5px !important;
+}
+
+div#root > div#managerDashboardUI > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2) {
+  text-align: center !important;
+}
+
+div#root > div#managerDashboardUI > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(3) {
+  text-align: center !important;
+}
+
+div#root > div#managerDashboardUI > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr > td:nth-of-type(7) {
+  width: 128px !important;
+  min-width: 128px !important;
+}
+
+div#root > div#managerDashboardUI > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr > td:nth-of-type(8) > div:nth-of-type(1) > button:nth-of-type(1) {
+  font-size: 12px !important;
+  font-family: 'Times New Roman', Times, serif !important;
+}
+
+
+
+
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(1) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(3) > span:nth-of-type(1) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr > th:nth-of-type(1) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr > th:nth-of-type(2) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr > th:nth-of-type(3) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr > th:nth-of-type(4) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr > th:nth-of-type(5) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr > td:nth-of-type(1) > button:nth-of-type(1) { font-size: 18px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr > td:nth-of-type(1) > button:nth-of-type(1) > span:nth-of-type(1) { font-size: 15px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr > td:nth-of-type(2) { font-size: 18px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr > td:nth-of-type(3) { font-size: 18px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr > td:nth-of-type(4) > span:nth-of-type(1) { font-size: 18px !important; }
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr > td:nth-of-type(5) > button:nth-of-type(1) { font-size: 15px !important; }
+
+
+
+/* New User Applied Styles */
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) {
+  padding-right: 13.5px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-size: 18px !important;
+  width: 194.594px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-size: 18px !important;
+  padding-right: 0px !important;
+  width: 251.109px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > span:nth-of-type(1) {
+  font-size: 18px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > span:nth-of-type(1) {
+  font-size: 18px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1) {
+  padding-right: 0px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > span:nth-of-type(2) {
+  padding-right: 8.5px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > span:nth-of-type(2) {
+  padding-right: 17.5px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) {
+  padding-right: 11.5px !important;
+}
+
+div#root:nth-of-type(1) > div#managerDashboardUI:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) {
+  padding-left: 25px !important;
+  padding-right: 25px !important;
+  padding-bottom: 25px !important;
+  padding-top: 25px !important;
+}

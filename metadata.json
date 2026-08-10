@@ -1,0 +1,6 @@
+{
+  "name": "AccuFlow",
+  "description": "نظام محاسبي سحابي متكامل يربط بين المدير المالي، المحاسب، والتاجر لإدارة الاشتراكات والعمليات والمحفظة بكفاءة عالية وأمان تام.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

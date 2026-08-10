@@ -1,0 +1,111 @@
+                      type="button"
+                      onClick={() => setWalletLedgerTab("cash")}
+                      className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+                        walletLedgerTab === "cash"
+                          ? "bg-white text-blue-600 shadow-sm border border-blue-100 font-extrabold"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      💵 دفتر الكاش ({wallet?.history ? wallet.history.filter((h: any) => {
+                        const typeStr = Strin                        (() => {
+                          const filteredHistory = wallet.history.filter((h: any) => {
+                            const typeStr = String(h.type || "").toLowerCase();
+                            const descStr = String(h.description || "");
+                            const isBonus = typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية");
+                            if (walletLedgerTab === "cash") return !isBonus;
+                            if (walletLedgerTab === "bonus") return isBonus;
+                            return true;
+                          });
+
+                          if (filteredHistory.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={7} className="p-8 text-center text-slate-400 font-bold">
+                                  {walletLedgerTab === "cash" && "لا توجد حركات كاش مسجلة في هذا الكشف بعد."}
+                                  {walletLedgerTab === "bonus" && "لا توجد حركات بونص مسجلة في هذا الكشف بعد."}
+                                  {walletLedgerTab === "all" && "لا توجد حركات محفظة مسجلة بعد."}
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          let runningSum = 0;
+                          const historyWithBal = [...filteredHistory].reverse().map(h => {
+                            const amount = parseFloat(h.amount || 0);
+                            runningSum += amount;
+                            return { ...h, calculatedBal: runningSum, numericAmt: amount };
+                          }).reverse();
+
+                          return historyWithBal.map((h: any, i: number) => {
+                            const amount = h.numericAmt;
+                            const displayBal = h.calculatedBal;
+                            const typeStr = String(h.type || "").toLowerCase();
+                            const descStr = String(h.description || "");
+                            const isBonus = typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية");
+                            return (
+                              <tr 
+                                key={i} 
+                                className="hover:bg-slate-50/50 cursor-pointer transition-colors"
+                                onClick={() => setSelectedWalletTx({ ...h, displayBal, index: filteredHistory.length - i, amount })}
+                              >te-50 text-[10px] text-slate-400 border-b border-slate-100 font-extrabold">
+                        <th className="p-3.5">الرقم</th>
+                        <th className="p-3.5">نوع الحركة المالية</th>
+                        <th className="p-3.5">نوع الرصيد</th>
+                        <th className="p-3.5">المبلغ</th>
+                        <th className="p-3.5">الرصيد التراكمي للحساب</th>
+                        <th className="p-3.5">التفاصيل والبيان المعتمد</th>
+                        <th className="p-3.5">تاريخ الحركة</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs text-slate-700 divide-y divide-slate-100 font-medium">
+                      {wallet?.history && wallet.history.length > 0 ? (
+                        (() => {
+                          const filteredHistory = wallet.history.filter((h: any) => {
+                            const typeStr = String(h.type || "").toLowerCase();
+                            const descStr = String(h.description || "");
+                            const isBonus = typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية");
+                            if (walletLedgerTab === "cash") return !isBonus;
+                            if (walletLedgerTab === "bonus") return isBonus;
+                            return true;
+                          });
+
+                          if (filteredHistory.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={7} className="p-8 text-center text-slate-400 font-bold">
+                                  {walletLedgerTab === "cash" && "لا توجد حركات كاش مسجلة في هذا الدفتر بعد."}
+                                  {walletLedgerTab === "bonus" && "لا توجد حركات بونص مسجلة في هذا الدفتر بعد."}
+                                  {walletLedgerTab === "all" && "لا توجد حركات محفظة مسجلة بعد."}
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filteredHistory.map((h: any, i: number) => {
+                            const amount = parseFloat(h.amount);
+                            const displayBal = parseFloat(h.balance_after || 0);
+                            const typeStr = String(h.type || "").toLowerCase();
+                            const descStr = String(h.description || "");
+                            const isBonus = typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية");
+
+                            return (
+                              <tr 
+                                key={i} 
+                                className="hover:bg-slate-50/50 cursor-pointer transition-colors"
+                                onClick={() => setSelectedWalletTx({ ...h, displayBal, index: filteredHistory.length - i, amount })}
+                              >
+                                <td className="p-3.5 text-slate-400 font-bold font-mono">#{filteredHistory.length - i}</td>
+                                <td className="p-3.5">
+                                  {isBonus ? (
+                                    amount >= 0 ? (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">🎁 بونص (قبض)</span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">📤 دفع (من البونص)</span>
+                                    )
+                                  ) : (
+                                    amount >= 0 ? (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">📥 قبض (كاش)</span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-500 border border-red-100">📤 دفع (كاش)</span>
+                                    )
+                                  )}
