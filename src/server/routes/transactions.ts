@@ -757,6 +757,10 @@ router.get("/api/transactions/all-approved", async (req, res) => {
   const tokenUser = (req as any).body?.auth || {};
   if (!tokenUser.mainId) return res.status(401).json({ success: false, message: "Unauthorized." });
 
+  if (tokenUser.role !== "admin" && tokenUser.isSuperAdmin !== true) {
+    return res.status(403).json({ success: false, message: "غير مصرح." });
+  }
+
   try {
     const supabase = getSupabase();
     

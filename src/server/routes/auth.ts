@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { getSupabase } from "../db";
 import { logAudit } from "../audit";
 import { sendTelegram, getSuperAdminUsername, checkAndDeactivateExpiredSubscriptions } from "../helpers";
-import { hashPassword, verifyPassword, checkRateLimit, recordFailedAttempt, resetFailedAttempts, getJwtSecret, isBcryptHash } from "../auth";
+import { hashPassword, verifyPassword, checkRateLimit, recordFailedAttempt, resetFailedAttempts, getJwtSecret, isBcryptHash, checkIpRateLimit, recordIpFailedAttempt, resetIpFailedAttempts } from "../auth";
 
 const router = express.Router();
 
@@ -179,8 +179,21 @@ router.post("/api/auth/login", async (req, res) => {
     return res.status(400).json({ success: false, message: "اسم المستخدم وكلمة المرور مطلوبة." });
   }
 
-  // Check brute force lock
-  const rateLimit = checkRateLimit(username);
+  const ip = req.ip || req.connection?.remoteAddress || "0.0.0.0";
+
+  // Check IP level brute force lock
+  const ipRateLimit = checkIpRateLimit(ip);
+  if (!ipRateLimit.allowed) {
+    const minutesLeft = Math.ceil(ipRateLimit.remainingMs / (60 * 1000));
+    return res.status(429).json({ 
+      success: false, 
+      message: `تم حظر عنوان IP مؤقتاً لكثرة المحاولات الخاطئة. يرجى المحاولة بعد ${minutesLeft} دقائق.` 
+    });
+  }
+
+  // Check composite (IP + Username) brute force lock
+  const compositeKey = `${ip}:${username}`;
+  const rateLimit = checkRateLimit(compositeKey);
   if (!rateLimit.allowed) {
     const minutesLeft = Math.ceil(rateLimit.remainingMs / (60 * 1000));
     return res.status(429).json({ 
@@ -242,7 +255,8 @@ router.post("/api/auth/login", async (req, res) => {
             { expiresIn: "30d" }
           );
 
-          resetFailedAttempts(username);
+          resetFailedAttempts(compositeKey);
+          resetIpFailedAttempts(ip);
           await logAudit(user.main_id, "admin", "LOGIN_SUCCESS", "zobon_main", user.main_id, null, null);
           
           return res.json({
@@ -259,14 +273,16 @@ router.post("/api/auth/login", async (req, res) => {
             },
           });
         } else {
-          recordFailedAttempt(username);
+          recordFailedAttempt(compositeKey);
+          recordIpFailedAttempt(ip);
           return res.json({
             success: false,
             message: "حساب المدير غير فعال أو انتهى اشتراكه، يرجى مراجعة إدارة المنصة.",
           });
         }
       } else {
-        recordFailedAttempt(username);
+        recordFailedAttempt(compositeKey);
+        recordIpFailedAttempt(ip);
         return res.json({ success: false, message: "كلمة المرور غير صحيحة." });
       }
     }
@@ -335,7 +351,8 @@ router.post("/api/auth/login", async (req, res) => {
             { expiresIn: "30d" }
           );
 
-          resetFailedAttempts(username);
+          resetFailedAttempts(compositeKey);
+          resetIpFailedAttempts(ip);
           await logAudit(acc.accountant_id, "accountant", "LOGIN_SUCCESS", "accountants", acc.accountant_id, null, null);
           
           return res.json({
@@ -351,11 +368,13 @@ router.post("/api/auth/login", async (req, res) => {
             },
           });
         } else {
-          recordFailedAttempt(username);
+          recordFailedAttempt(compositeKey);
+          recordIpFailedAttempt(ip);
           return res.json({ success: false, message: "حسابك كمحاسب معطل." });
         }
       } else {
-        recordFailedAttempt(username);
+        recordFailedAttempt(compositeKey);
+        recordIpFailedAttempt(ip);
         return res.json({ success: false, message: "كلمة المرور غير صحيحة." });
       }
     }
@@ -396,7 +415,8 @@ router.post("/api/auth/login", async (req, res) => {
           { expiresIn: "30d" }
         );
 
-        resetFailedAttempts(username);
+        resetFailedAttempts(compositeKey);
+        resetIpFailedAttempts(ip);
         await logAudit(client.client_id, "client", "LOGIN_SUCCESS", "clients", client.client_id, null, null);
         
         return res.json({
@@ -412,12 +432,14 @@ router.post("/api/auth/login", async (req, res) => {
           },
         });
       } else {
-        recordFailedAttempt(username);
+        recordFailedAttempt(compositeKey);
+        recordIpFailedAttempt(ip);
         return res.json({ success: false, message: "رقم الجوال المرفق بالمنشأة غير صحيح." });
       }
     }
 
-    recordFailedAttempt(username);
+    recordFailedAttempt(compositeKey);
+    recordIpFailedAttempt(ip);
     return res.json({ success: false, message: "اسم المستخدم غير موجود." });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: "حدث خطأ أثناء تسجيل الدخول: " + err.message });

@@ -23,7 +23,11 @@ router.post("/api/monitoring/health", async (req, res) => {
       realtimeMessages: { used: 0 }
     };
 
-    if (auth.isSuperAdmin || auth.role === "admin") {
+    if (auth.isSuperAdmin !== true) {
+      return res.status(403).json({ success: false, message: "غير مصرح." });
+    }
+    
+    if (auth.isSuperAdmin) {
       // Calculate storage usage per client
       const { data: allClients, count: clientsCount } = await supabase.from("clients").select("client_id, company_name, main_id", { count: "exact" });
       const { data: allManagers, count: managersCount } = await supabase.from("zobon_main").select("main_id, username", { count: "exact" });
@@ -178,7 +182,7 @@ router.post("/api/monitoring/export-data", async (req, res) => {
       attachmentsRes,
     ] = await Promise.all([
       supabase.from("zobon_main").select("main_id, telegram_id, username, full_name, start_date, end_date, subscription_value, paid_amount, status, created_at, phone, wallet_balance, wallet_bonus, first_client_free_used, first_accountant_free_used, is_featured, featured_until, facebook_url, instagram_url, linkedin_url, bio, profile_image_url, total_earned, total_paid_to_platform"),
-      supabase.from("clients").select("*"),
+      supabase.from("clients").select("client_id, main_id, company_name, phone, address, notes, start_date, end_date, subscription_value, paid_amount, status, created_at, sys_status, sys_start_date, sys_end_date, sys_sub_value, sys_paid_amount, is_free_tier, monthly_tx_count, tx_limit, total_paid_to_manager, assigned_accountants"),
       supabase.from("accountants").select("accountant_id, main_id, telegram_id, username, full_name, phone, address, employment_date, salary, due_amounts, paid_amounts, status, created_at, sys_status, sys_start_date, sys_end_date, sys_sub_value, sys_paid_amount, total_paid_by_manager"),
       supabase.from("accountant_clients").select("*"),
       supabase.from("transactions").select("*"),

@@ -77,48 +77,10 @@ router.post("/api/admins/edit", async (req, res) => {
 
       if (admin.walletBalance !== undefined && !isNaN(admin.walletBalance)) {
         payload.wallet_balance = admin.walletBalance;
-        const diffBal = admin.walletBalance - oldBal;
-        if (diffBal !== 0 && !isTargetOwner) {
-          const { data: ownerData } = await supabase.from("zobon_main").select("main_id, wallet_balance, wallet_bonus").eq("username", superAdminUsername).single();
-          if (ownerData) {
-            const newOwnerBal = parseFloat(ownerData.wallet_balance || 0) + diffBal;
-            await supabase.from("zobon_main").update({ wallet_balance: newOwnerBal }).eq("main_id", ownerData.main_id);
-
-            await supabase.from("wallet_transactions").insert([{
-              main_id: ownerData.main_id,
-              amount: diffBal,
-              type: diffBal > 0 ? "charge" : "deduct",
-              description: `تعديل رصيد كاش للمدير ${oldTargetData.full_name} (@${oldTargetData.username})`,
-              target_type: "manual",
-              target_id: null,
-              balance_after: newOwnerBal + parseFloat(ownerData.wallet_bonus || 0),
-              created_at: new Date().toISOString()
-            }]);
-          }
-        }
       }
 
       if (admin.walletBonus !== undefined && !isNaN(admin.walletBonus)) {
         payload.wallet_bonus = admin.walletBonus;
-        const diffBonus = admin.walletBonus - oldBonus;
-        if (diffBonus !== 0 && !isTargetOwner) {
-          const { data: ownerData } = await supabase.from("zobon_main").select("main_id, wallet_balance, wallet_bonus").eq("username", superAdminUsername).single();
-          if (ownerData) {
-            const newOwnerBonus = parseFloat(ownerData.wallet_bonus || 0) + diffBonus;
-            await supabase.from("zobon_main").update({ wallet_bonus: newOwnerBonus }).eq("main_id", ownerData.main_id);
-
-            await supabase.from("wallet_transactions").insert([{
-              main_id: ownerData.main_id,
-              amount: diffBonus,
-              type: diffBonus > 0 ? "bonus" : "deduct",
-              description: `تعديل رصيد بونص للمدير ${oldTargetData.full_name} (@${oldTargetData.username})`,
-              target_type: "manual",
-              target_id: null,
-              balance_after: parseFloat(ownerData.wallet_balance || 0) + newOwnerBonus,
-              created_at: new Date().toISOString()
-            }]);
-          }
-        }
       }
     }
 

@@ -9,6 +9,10 @@ const router = express.Router();
 router.post("/api/wallet/balance", async (req, res) => {
   const { auth } = req.body;
   if (!auth) return res.status(401).json({ success: false, message: "غير مصرح." });
+  
+  if (auth.role === "accountant") {
+    return res.status(403).json({ success: false, message: "غير مصرح لك بعرض المحفظة." });
+  }
 
   try {
     const supabase = getSupabase();
@@ -155,28 +159,6 @@ router.post("/api/wallet/approve-deposit", async (req, res) => {
       wallet_balance: newBalance,
       wallet_bonus: newBonus,
     }).eq("main_id", dep.main_id);
-    
-    // Also increase owner's wallet by the deposit amount
-    const superAdminUsername2 = await getSuperAdminUsername();
-    const { data: ownerData2 } = await supabase.from("zobon_main").select("main_id, wallet_balance").eq("username", superAdminUsername2).single();
-    if (ownerData2 && ownerData2.main_id !== dep.main_id) {
-       const newOwnerBalance = parseFloat(ownerData2.wallet_balance || 0) + depAmt;
-       await supabase.from("zobon_main").update({ wallet_balance: newOwnerBalance }).eq("main_id", ownerData2.main_id);
-       
-       // Log transaction for the owner
-       const { data: mgrInfoForOwner } = await supabase.from("zobon_main").select("full_name, username").eq("main_id", dep.main_id).single();
-       const mgrName = mgrInfoForOwner ? `${mgrInfoForOwner.full_name} (@${mgrInfoForOwner.username})` : `المدير المالي`;
-       await supabase.from("wallet_transactions").insert([{
-         main_id: ownerData2.main_id,
-         amount: depAmt,
-         type: "charge",
-         description: `شحن رصيد للمدير: ${mgrName} (موافقة على طلب رقم #${depositId})`,
-         target_type: "charge",
-         target_id: depositId,
-         balance_after: newOwnerBalance,
-         created_at: new Date().toISOString()
-       }]);
-    }
 
     // 3. Log main deposit transaction
     await supabase.from("wallet_transactions").insert([
@@ -320,27 +302,6 @@ router.post("/api/wallet/add-bonus", async (req, res) => {
       },
     ]);
 
-    // Also update owner's bonus wallet if target is not the owner
-    const superAdminUsername = await getSuperAdminUsername();
-    const { data: ownerData } = await supabase.from("zobon_main").select("main_id, wallet_balance, wallet_bonus").eq("username", superAdminUsername).single();
-    if (ownerData && ownerData.main_id !== targetId) {
-       const newOwnerBonus = parseFloat(ownerData.wallet_bonus || 0) + added;
-       await supabase.from("zobon_main").update({ wallet_bonus: newOwnerBonus }).eq("main_id", ownerData.main_id);
-
-       const { data: targetMgrInfo } = await supabase.from("zobon_main").select("full_name, username").eq("main_id", targetId).single();
-       const mgrName = targetMgrInfo ? `${targetMgrInfo.full_name} (@${targetMgrInfo.username})` : `المدير المالي`;
-       await supabase.from("wallet_transactions").insert([{
-         main_id: ownerData.main_id,
-         amount: added,
-         type: "bonus",
-         description: `شحن بونص للمدير: ${mgrName} (${description || "هدية رصيد ترويجي يدوي"})`,
-         target_type: "manual",
-         target_id: null,
-         balance_after: parseFloat(ownerData.wallet_balance || 0) + newOwnerBonus,
-         created_at: new Date().toISOString()
-       }]);
-    }
-
     await logAudit(auth.userId, auth.role, "MANUAL_BONUS_ADDED", "zobon_main", targetId, { wallet_bonus: currentBonus }, { wallet_bonus: newBonus });
 
     return res.json({ success: true, message: `🎁 تم منح رصيد ترويجي ترحيبي بمقدار ${added}$ للمدير بنجاح!` });
@@ -372,28 +333,6 @@ router.post("/api/wallet/charge", async (req, res) => {
     const newBalance = parseFloat(user[0].wallet_balance || 0) + val;
     const { error: updErr } = await supabase.from("zobon_main").update({ wallet_balance: newBalance }).eq("main_id", targetMainId);
     if (updErr) throw updErr;
-    
-    // Also increase owner's wallet by the same amount
-    const superAdminUsername = await getSuperAdminUsername();
-    const { data: ownerData } = await supabase.from("zobon_main").select("main_id, wallet_balance").eq("username", superAdminUsername).single();
-    if (ownerData && ownerData.main_id !== targetMainId) {
-       const newOwnerBalance = parseFloat(ownerData.wallet_balance || 0) + val;
-       await supabase.from("zobon_main").update({ wallet_balance: newOwnerBalance }).eq("main_id", ownerData.main_id);
-       
-       // Log transaction for the owner
-       const { data: targetMgrInfo } = await supabase.from("zobon_main").select("full_name, username").eq("main_id", targetMainId).single();
-       const mgrName = targetMgrInfo ? `${targetMgrInfo.full_name} (@${targetMgrInfo.username})` : `المدير المالي`;
-       await supabase.from("wallet_transactions").insert([{
-         main_id: ownerData.main_id,
-         amount: val,
-         type: "charge",
-         description: `شحن رصيد للمدير: ${mgrName} (${description || "شحن رصيد إداري"})`,
-         target_type: "manual",
-         target_id: null,
-         balance_after: newOwnerBalance,
-         created_at: new Date().toISOString()
-       }]);
-    }
 
     await supabase.from("wallet_transactions").insert([{
       main_id: targetMainId,
@@ -449,44 +388,6 @@ router.post("/api/wallet/deduct", async (req, res) => {
 
     const { error: updErr } = await supabase.from("zobon_main").update(payload).eq("main_id", targetMainId);
     if (updErr) throw updErr;
-
-    // Also update owner's wallet (cash or bonus) if target is not the owner
-    const superAdminUsername = await getSuperAdminUsername();
-    const { data: ownerData } = await supabase.from("zobon_main").select("main_id, wallet_balance, wallet_bonus").eq("username", superAdminUsername).single();
-    if (ownerData && ownerData.main_id !== targetMainId) {
-       const { data: targetMgrInfo } = await supabase.from("zobon_main").select("full_name, username").eq("main_id", targetMainId).single();
-       const mgrName = targetMgrInfo ? `${targetMgrInfo.full_name} (@${targetMgrInfo.username})` : `المدير المالي`;
-
-       if (source === "bonus") {
-          const newOwnerBonus = parseFloat(ownerData.wallet_bonus || 0) - val;
-          await supabase.from("zobon_main").update({ wallet_bonus: newOwnerBonus }).eq("main_id", ownerData.main_id);
-
-          await supabase.from("wallet_transactions").insert([{
-            main_id: ownerData.main_id,
-            amount: -val,
-            type: "deduct",
-            description: `خصم بونص من المدير: ${mgrName} (${description || "خصم إداري"})`,
-            target_type: "manual",
-            target_id: null,
-            balance_after: parseFloat(ownerData.wallet_balance || 0) + newOwnerBonus,
-            created_at: new Date().toISOString()
-          }]);
-       } else {
-          const newOwnerBalance = parseFloat(ownerData.wallet_balance || 0) - val;
-          await supabase.from("zobon_main").update({ wallet_balance: newOwnerBalance }).eq("main_id", ownerData.main_id);
-
-          await supabase.from("wallet_transactions").insert([{
-            main_id: ownerData.main_id,
-            amount: -val,
-            type: "deduct",
-            description: `خصم رصيد من المدير: ${mgrName} (${description || "خصم إداري"})`,
-            target_type: "manual",
-            target_id: null,
-            balance_after: newOwnerBalance + parseFloat(ownerData.wallet_bonus || 0),
-            created_at: new Date().toISOString()
-          }]);
-       }
-    }
 
     // Fetch manager balance to compute balance_after
     const { data: mgrData } = await supabase.from("zobon_main").select("wallet_balance, wallet_bonus").eq("main_id", targetMainId).single();

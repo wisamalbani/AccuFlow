@@ -32,9 +32,38 @@ export function verifyPassword(password: string, hash: string): boolean {
 
 // In-memory rate limiter for login
 const failedLoginAttempts = new Map<string, { count: number; lockUntil: number }>();
+const ipFailedAttempts = new Map<string, { count: number; lockUntil: number }>();
 
-export function checkRateLimit(username: string): { allowed: boolean; remainingMs: number } {
-  const attempt = failedLoginAttempts.get(username);
+export function checkIpRateLimit(ip: string): { allowed: boolean; remainingMs: number } {
+  const attempt = ipFailedAttempts.get(ip);
+  if (!attempt) return { allowed: true, remainingMs: 0 };
+  
+  if (attempt.count >= 30 && Date.now() < attempt.lockUntil) {
+    return { allowed: false, remainingMs: attempt.lockUntil - Date.now() };
+  }
+  
+  if (Date.now() >= attempt.lockUntil) {
+    ipFailedAttempts.delete(ip);
+  }
+  
+  return { allowed: true, remainingMs: 0 };
+}
+
+export function recordIpFailedAttempt(ip: string) {
+  const attempt = ipFailedAttempts.get(ip) || { count: 0, lockUntil: 0 };
+  attempt.count += 1;
+  if (attempt.count >= 30) {
+    attempt.lockUntil = Date.now() + 10 * 60 * 1000; // Lock for 10 minutes
+  }
+  ipFailedAttempts.set(ip, attempt);
+}
+
+export function resetIpFailedAttempts(ip: string) {
+  ipFailedAttempts.delete(ip);
+}
+
+export function checkRateLimit(key: string): { allowed: boolean; remainingMs: number } {
+  const attempt = failedLoginAttempts.get(key);
   if (!attempt) return { allowed: true, remainingMs: 0 };
   
   if (attempt.count >= 5 && Date.now() < attempt.lockUntil) {
@@ -42,23 +71,23 @@ export function checkRateLimit(username: string): { allowed: boolean; remainingM
   }
   
   if (Date.now() >= attempt.lockUntil) {
-    failedLoginAttempts.delete(username);
+    failedLoginAttempts.delete(key);
   }
   
   return { allowed: true, remainingMs: 0 };
 }
 
-export function recordFailedAttempt(username: string) {
-  const attempt = failedLoginAttempts.get(username) || { count: 0, lockUntil: 0 };
+export function recordFailedAttempt(key: string) {
+  const attempt = failedLoginAttempts.get(key) || { count: 0, lockUntil: 0 };
   attempt.count += 1;
   if (attempt.count >= 5) {
     attempt.lockUntil = Date.now() + 5 * 60 * 1000; // Lock for 5 minutes
   }
-  failedLoginAttempts.set(username, attempt);
+  failedLoginAttempts.set(key, attempt);
 }
 
-export function resetFailedAttempts(username: string) {
-  failedLoginAttempts.delete(username);
+export function resetFailedAttempts(key: string) {
+  failedLoginAttempts.delete(key);
 }
 
 // JWT verification and authorization middleware

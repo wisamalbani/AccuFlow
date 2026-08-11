@@ -34,8 +34,8 @@ async function startServer() {
   const app = express();
 
   // Standard middleware configurations
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "12mb" }));
+  app.use(express.urlencoded({ limit: "12mb", extended: true }));
 
   // Register Auth Middleware
   

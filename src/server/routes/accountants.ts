@@ -20,6 +20,17 @@ router.post("/api/accountants/add", async (req, res) => {
       return res.json({ success: false, message: "❌ لا يمكنك إضافة نفسك كمحاسب مساعد لنفسك!" });
     }
 
+    if (selectedClients && selectedClients.length > 0) {
+      const { data: validClients, error: vErr } = await supabase
+        .from("clients")
+        .select("client_id")
+        .eq("main_id", auth.mainId)
+        .in("client_id", selectedClients);
+      
+      if (vErr || !validClients || validClients.length < selectedClients.length) {
+        return res.status(403).json({ success: false, message: "بعض العملاء المحددين غير تابعين لحسابك." });
+      }
+    }
 
     // 1. Verify that the accountant exists as an existing manager in zobon_main
     const { data: targetManager, error: tmErr } = await supabase
