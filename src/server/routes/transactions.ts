@@ -22,7 +22,7 @@ const router = express.Router();
 
 async function authorizeClientAccess(supabase: any, auth: any, publicToken: any, clientId: any) {
   const { data: clientRecord } = await supabase.from("clients")
-    .select("client_id, main_id, status, sys_status, public_access_token")
+    .select("client_id, main_id, status, sys_status, public_access_token, is_free_tier, tx_limit")
     .eq("client_id", clientId);
   if (!clientRecord || clientRecord.length === 0) return { ok: false, status: 404, message: "التاجر المستهدف غير موجود." };
   const client = clientRecord[0];
@@ -56,6 +56,17 @@ router.post("/api/transactions/add", async (req, res) => {
     return res.status(400).json({ success: false, message: "جميع الحقول الأساسية للسند مطلوبة." });
   }
 
+  const parsedAmount = parseFloat(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ success: false, message: "المبلغ غير صالح." });
+  }
+  if (txType !== "قبض" && txType !== "صرف") {
+    return res.status(400).json({ success: false, message: "النوع غير صالح." });
+  }
+  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو") {
+    return res.status(400).json({ success: false, message: "العملة غير صالحة." });
+  }
+
   // Validate file size limit
   if (!validateFileSize(fileData)) {
     return res.status(400).json({ success: false, message: "حجم الملف يتجاوز الحد المسموح (10MB)" });
@@ -71,6 +82,18 @@ router.post("/api/transactions/add", async (req, res) => {
     const client = clientRecord[0];
     if (client.status !== "Active" || client.sys_status !== "Active") {
       return res.json({ success: false, message: "هذا الحساب معطل حالياً ولا يستقبل أي عمليات ترحيل محاسبي." });
+    }
+
+    if (client.is_free_tier) {
+      const firstDay = new Date();
+      firstDay.setDate(1);
+      firstDay.setHours(0, 0, 0, 0);
+      const { count } = await supabase.from("transactions").select("*", { count: "exact", head: true })
+        .eq("client_id", clientId)
+        .gte("created_at", firstDay.toISOString());
+      if ((count || 0) >= (client.tx_limit || 50)) {
+        return res.status(403).json({ success: false, message: "🔒 وصلت للحد الأقصى للباقة المجانية (50 حركة شهرياً). يرجى الترقية للباقة المدفوعة عبر المدير المالي." });
+      }
     }
 
     if (!auth.isSuperAdmin) {
@@ -145,6 +168,17 @@ router.post("/api/transactions/edit", async (req, res) => {
   if (!auth) return res.status(401).json({ success: false, message: "غير مصرح." });
 
   const { txType, currency, amount, notes, receiptUrl, fileData, fileName } = transaction;
+
+  const parsedAmount = parseFloat(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ success: false, message: "المبلغ غير صالح." });
+  }
+  if (txType !== "قبض" && txType !== "صرف") {
+    return res.status(400).json({ success: false, message: "النوع غير صالح." });
+  }
+  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو") {
+    return res.status(400).json({ success: false, message: "العملة غير صالحة." });
+  }
 
   // Validate file size limit
   if (!validateFileSize(fileData)) {
@@ -477,6 +511,17 @@ router.post("/api/transactions/save", async (req, res) => {
     return res.status(400).json({ success: false, message: "بيانات السند غير مكتملة." });
   }
 
+  const parsedAmount = parseFloat(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ success: false, message: "المبلغ غير صالح." });
+  }
+  if (txType !== "قبض" && txType !== "صرف") {
+    return res.status(400).json({ success: false, message: "النوع غير صالح." });
+  }
+  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو") {
+    return res.status(400).json({ success: false, message: "العملة غير صالحة." });
+  }
+
   // Validate file size limit
   if (!validateFileSize(fileData)) {
     return res.status(400).json({ success: false, message: "حجم الملف يتجاوز الحد المسموح (10MB)" });
@@ -500,6 +545,18 @@ router.post("/api/transactions/save", async (req, res) => {
 
     if (client.status !== "Active" || client.sys_status !== "Active") {
       return res.json({ success: false, message: "هذا الحساب معطل حالياً ولا يستقبل أي عمليات." });
+    }
+
+    if (client.is_free_tier) {
+      const firstDay = new Date();
+      firstDay.setDate(1);
+      firstDay.setHours(0, 0, 0, 0);
+      const { count } = await supabase.from("transactions").select("*", { count: "exact", head: true })
+        .eq("client_id", clientId)
+        .gte("created_at", firstDay.toISOString());
+      if ((count || 0) >= (client.tx_limit || 50)) {
+        return res.status(403).json({ success: false, message: "🔒 وصلت للحد الأقصى للباقة المجانية (50 حركة شهرياً). يرجى الترقية للباقة المدفوعة عبر المدير المالي." });
+      }
     }
 
     const payload = {
@@ -579,6 +636,19 @@ router.post("/api/transactions/save-complex", async (req, res) => {
     return res.status(400).json({ success: false, message: "لا توجد سندات للحفظ." });
   }
 
+  for (const tx of transactions) {
+    const parsedAmount = parseFloat(tx.amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ success: false, message: "المبلغ غير صالح." });
+    }
+    if (tx.type !== "قبض" && tx.type !== "صرف") {
+      return res.status(400).json({ success: false, message: "النوع غير صالح." });
+    }
+    if (tx.currency !== "ليرة سورية" && tx.currency !== "دولار أمريكي" && tx.currency !== "يورو") {
+      return res.status(400).json({ success: false, message: "العملة غير صالحة." });
+    }
+  }
+
   if (!auth) {
     const ip = req.ip || req.connection?.remoteAddress || "0.0.0.0";
     if (!checkPublicSaveRateLimit(ip)) {
@@ -597,6 +667,18 @@ router.post("/api/transactions/save-complex", async (req, res) => {
 
     if (client.status !== "Active" || client.sys_status !== "Active") {
       return res.json({ success: false, message: "هذا الحساب معطل حالياً." });
+    }
+
+    if (client.is_free_tier) {
+      const firstDay = new Date();
+      firstDay.setDate(1);
+      firstDay.setHours(0, 0, 0, 0);
+      const { count } = await supabase.from("transactions").select("*", { count: "exact", head: true })
+        .eq("client_id", clientId)
+        .gte("created_at", firstDay.toISOString());
+      if ((count || 0) >= (client.tx_limit || 50)) {
+        return res.status(403).json({ success: false, message: "🔒 وصلت للحد الأقصى للباقة المجانية (50 حركة شهرياً). يرجى الترقية للباقة المدفوعة عبر المدير المالي." });
+      }
     }
 
     let insertedCount = 0;

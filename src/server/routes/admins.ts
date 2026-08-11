@@ -22,6 +22,7 @@ router.post("/api/admins/get-details", async (req, res) => {
     if (!data || data.length === 0) return res.json({ success: false, message: "المدير غير موجود." });
 
     const admin = data[0];
+    delete admin.password_hash;
     const { data: transactions } = await supabase.from("wallet_transactions").select("*").eq("main_id", id).order("created_at", { ascending: false }).limit(500);
 
     return res.json({ success: true, admin, transactions: transactions || [] });

@@ -65,7 +65,10 @@ router.post("/api/accountants/add", async (req, res) => {
 
     // 4. Deduct from wallet if not free
     if (!isFree) {
-      await deductFromWallet(auth.mainId, cost, `إضافة محاسب مساعد: ${mgrInfo.full_name}`, "accountant", null);
+      const deductResult = await deductFromWallet(auth.mainId, cost, `إضافة محاسب مساعد: ${mgrInfo.full_name}`, "accountant", null);
+      if (!deductResult.ok) {
+        return res.json({ success: false, message: deductResult.message });
+      }
     }
 
     // 5. Create Accountant record copying their registered manager credentials

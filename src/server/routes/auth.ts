@@ -272,12 +272,30 @@ router.post("/api/auth/login", async (req, res) => {
     }
 
     // 2. Search in accountants
-    const { data: accountants, error: aErr } = await supabase
+    const safeUsername = (username || "").replace(/[^A-Za-z0-9_]/g, '');
+    const { data: exactMatch, error: aErrExact } = await supabase
       .from("accountants")
       .select("*")
-      .or(`username.eq.${username},username.like.${username}_m%`);
+      .eq("username", username);
 
-    if (aErr) console.error("accountants search error:", aErr);
+    const { data: likeMatch, error: aErrLike } = await supabase
+      .from("accountants")
+      .select("*")
+      .like("username", `${safeUsername}_m%`);
+
+    if (aErrExact || aErrLike) console.error("accountants search error:", aErrExact || aErrLike);
+
+    let accountants = [];
+    const accMap = new Map();
+    if (exactMatch) exactMatch.forEach(acc => accMap.set(acc.accountant_id, acc));
+    if (likeMatch) {
+      likeMatch.forEach(acc => {
+        if (acc.username && acc.username.startsWith(`${safeUsername}_m`)) {
+          accMap.set(acc.accountant_id, acc);
+        }
+      });
+    }
+    accountants = Array.from(accMap.values());
 
     if (accountants && accountants.length > 0) {
       const acc = accountants[0];

@@ -42,7 +42,10 @@ router.post("/api/clients/add", async (req, res) => {
 
     // 3. Deduct from wallet if not free
     if (!isFree) {
-      await deductFromWallet(auth.mainId, cost, `إضافة تاجر: ${companyName}`, "client", null);
+      const deductResult = await deductFromWallet(auth.mainId, cost, `إضافة تاجر: ${companyName}`, "client", null);
+      if (!deductResult.ok) {
+        return res.json({ success: false, message: deductResult.message });
+      }
     }
 
     // 4. Create client record - active immediately!

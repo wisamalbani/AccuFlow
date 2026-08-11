@@ -268,12 +268,19 @@ export function validateFileSize(fileData?: string | null): boolean {
 
 export async function deductFromWallet(mainId: number, amount: number, notes: string, type: string, relatedId: any) {
   const supabase = getSupabase();
-  const { data: manager } = await supabase.from("zobon_main").select("wallet_balance, wallet_bonus").eq("main_id", mainId).single();
-  if (manager) {
+  let retries = 1;
+  while (retries >= 0) {
+    const { data: manager } = await supabase.from("zobon_main").select("wallet_balance, wallet_bonus").eq("main_id", mainId).single();
+    if (!manager) return { ok: false, message: "المدير غير موجود." };
+
     let currentBal = parseFloat(manager.wallet_balance || "0");
     let currentBonus = parseFloat(manager.wallet_bonus || "0");
-    let remaining = amount;
+    
+    if (currentBal + currentBonus < amount) {
+      return { ok: false, message: "رصيد المحفظة غير كافٍ لإتمام العملية." };
+    }
 
+    let remaining = amount;
     let bonusDeducted = 0;
     let cashDeducted = 0;
 
@@ -294,10 +301,22 @@ export async function deductFromWallet(mainId: number, amount: number, notes: st
     const newBonus = currentBonus - bonusDeducted;
     const newBal = currentBal - cashDeducted;
 
-    await supabase.from("zobon_main").update({
+    const { data: updated, error } = await supabase.from("zobon_main").update({
       wallet_balance: newBal,
       wallet_bonus: newBonus
-    }).eq("main_id", mainId);
+    })
+    .eq("main_id", mainId)
+    .eq("wallet_balance", manager.wallet_balance)
+    .eq("wallet_bonus", manager.wallet_bonus)
+    .select();
+
+    if (error || !updated || updated.length === 0) {
+      if (retries === 0) {
+        return { ok: false, message: "تعذر تنفيذ الخصم حالياً، حاول مجدداً." };
+      }
+      retries--;
+      continue;
+    }
 
     const now = new Date().toISOString();
 
@@ -332,6 +351,8 @@ export async function deductFromWallet(mainId: number, amount: number, notes: st
         created_at: now
       }]);
     }
+    
+    return { ok: true };
   }
 }
 

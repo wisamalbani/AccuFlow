@@ -16,9 +16,7 @@ router.post("/api/dashboard/data", async (req, res) => {
     let allAdmins = [];
     let myAdminData = null;
     let hasAccountantProfile = null;
-    let accountantProfiles = [];
-
-    // Fetch myAdminData
+    let accountantProfiles     // Fetch myAdminData
     const { data: adminData } = await supabase.from("zobon_main").select("*").eq("main_id", auth.mainId);
     if (adminData && adminData.length > 0) {
       myAdminData = adminData[0];
@@ -39,6 +37,7 @@ router.post("/api/dashboard/data", async (req, res) => {
         myAdminData.paid_amount = paid;
         myAdminData.subscription_value = consumed;
       }
+      delete myAdminData.password_hash;
     }
 
     if (auth.role === "admin") {
@@ -55,10 +54,13 @@ router.post("/api/dashboard/data", async (req, res) => {
 
       const { data: accountantsData } = await supabase.from("accountants").select("*, assigned_clients:accountant_clients(client_id, link_status:status)").eq("main_id", auth.mainId);
       if (accountantsData) {
-        accountants = accountantsData.map((acc: any) => ({
-          ...acc,
-          username: acc.username ? acc.username.split("_m")[0] : acc.username
-        }));
+        accountants = accountantsData.map((acc: any) => {
+          delete acc.password_hash;
+          return {
+            ...acc,
+            username: acc.username ? acc.username.split("_m")[0] : acc.username
+          };
+        });
       }
 
       // Super Admin sees all admins
@@ -68,7 +70,8 @@ router.post("/api/dashboard/data", async (req, res) => {
           // calculate counts
           const { data: allClients } = await supabase.from("clients").select("main_id");
           const { data: allAccountants } = await supabase.from("accountants").select("main_id");
-                    const { data: allTxs } = await supabase.from("wallet_transactions").select("main_id, amount");
+          
+          const { data: allTxs } = await supabase.from("wallet_transactions").select("main_id, amount");
           allAdmins = adminsData.map((adm: any) => {
             let paid = 0;
             let consumed = 0;
@@ -80,6 +83,7 @@ router.post("/api/dashboard/data", async (req, res) => {
                 else if (amt < 0) consumed += Math.abs(amt);
               }
             }
+            delete adm.password_hash;
             return {
               ...adm,
               client_count: (allClients || []).filter((c: any) => c.main_id === adm.main_id).length,
@@ -107,22 +111,45 @@ router.post("/api/dashboard/data", async (req, res) => {
       const { data: accProfile } = await supabase.from("zobon_main").select("*").eq("username", auth.username);
       if (accProfile && accProfile.length > 0) {
         hasAccountantProfile = accProfile[0];
+        delete hasAccountantProfile.password_hash;
       }
     }
 
     // Fetch accountant profiles where this user is acting as an accountant for managers
-    const { data: coopAccountants } = await supabase
+    const safeUsername = (auth.username || "").replace(/[^A-Za-z0-9_]/g, '');
+    const { data: exactMatch } = await supabase
       .from("accountants")
       .select("*, manager:zobon_main!main_id(full_name, username)")
-      .or(`username.eq.${auth.username},username.like.${auth.username}_m%`)
+      .eq("username", auth.username)
+      .eq("status", "Active");
+      
+    const { data: likeMatch } = await supabase
+      .from("accountants")
+      .select("*, manager:zobon_main!main_id(full_name, username)")
+      .like("username", `${safeUsername}_m%`)
       .eq("status", "Active");
 
-    if (coopAccountants) {
-      accountantProfiles = coopAccountants.map((acc: any) => ({
-        ...acc,
-        username: acc.username ? acc.username.split("_m")[0] : acc.username,
-        manager_name: acc.manager?.full_name || "المدير المالي"
-      }));
+    let coopAccountants = [];
+    const accMap = new Map();
+    if (exactMatch) exactMatch.forEach(acc => accMap.set(acc.accountant_id, acc));
+    if (likeMatch) {
+      likeMatch.forEach(acc => {
+        if (acc.username && acc.username.startsWith(`${safeUsername}_m`)) {
+          accMap.set(acc.accountant_id, acc);
+        }
+      });
+    }
+    coopAccountants = Array.from(accMap.values());
+
+    if (coopAccountants.length > 0) {
+      accountantProfiles = coopAccountants.map((acc: any) => {
+        delete acc.password_hash;
+        return {
+          ...acc,
+          username: acc.username ? acc.username.split("_m")[0] : acc.username,
+          manager_name: acc.manager?.full_name || "المدير المالي"
+        };
+      });
     }
 
     const superAdminUsername = await getSuperAdminUsername();

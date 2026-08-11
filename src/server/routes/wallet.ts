@@ -558,9 +558,17 @@ router.post("/api/wallet/transfer", async (req, res) => {
       return res.json({ success: false, message: `رصيد الكاش في محفظتك غير كافٍ. المتوفر حالياً: ${senderBal}$` });
     }
 
-    // 3. Deduct from sender
+    // 3. Deduct from sender with optimistic locking
     const newSenderBal = senderBal - val;
-    await supabase.from("zobon_main").update({ wallet_balance: newSenderBal }).eq("main_id", auth.mainId);
+    const { data: updatedSender, error: senderUpdateErr } = await supabase.from("zobon_main")
+      .update({ wallet_balance: newSenderBal })
+      .eq("main_id", auth.mainId)
+      .eq("wallet_balance", senderInfo.wallet_balance)
+      .select();
+
+    if (senderUpdateErr || !updatedSender || updatedSender.length === 0) {
+      return res.json({ success: false, message: "تعذر تنفيذ الخصم بسبب تغيير في الرصيد، يرجى إعادة المحاولة." });
+    }
 
     // 4. Add to recipient
     const recipientBal = parseFloat(recipient.wallet_balance || 0);
@@ -864,7 +872,10 @@ router.post("/api/subscription/renew-client", async (req, res) => {
     const { clientPrice: price } = await getServicePrices();
 
     // Deduct cost from wallet
-    await deductFromWallet(auth.mainId, price, `تجديد اشتراك تاجر شهري: ${cl.company_name}`, "client_renewal", clientId);
+    const deductResult = await deductFromWallet(auth.mainId, price, `تجديد اشتراك تاجر شهري: ${cl.company_name}`, "client_renewal", clientId);
+    if (!deductResult.ok) {
+      return res.json({ success: false, message: deductResult.message });
+    }
 
     // Calculate new end_date (add 1 year to existing end_date if active, or from today if expired)
     const today = new Date();
