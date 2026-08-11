@@ -14,6 +14,15 @@ router.post("/api/auth/register", async (req, res) => {
     return res.status(400).json({ success: false, message: "جميع الحقول الأساسية مطلوبة للتسجيل." });
   }
 
+  if (!/^[A-Za-z0-9_]{3,30}$/.test(username)) {
+    return res.status(400).json({ success: false, message: "اسم المستخدم غير صالح. يجب أن يحتوي فقط على أحرف إنجليزية، أرقام، و underscore، ويكون بين 3 و 30 محرفاً." });
+  }
+
+  const superAdminUsername = process.env.SUPER_ADMIN_USERNAME || "";
+  if (superAdminUsername && username.toLowerCase() === superAdminUsername.toLowerCase()) {
+    return res.status(409).json({ success: false, message: "اسم المستخدم هذا محجوز." });
+  }
+
   try {
     const supabase = getSupabase();
     
@@ -101,8 +110,8 @@ router.get("/api/public/packages", async (req, res) => {
 
 router.post("/api/admin/packages", async (req, res) => {
   const auth = req.body?.auth;
-  if (!auth || (!auth.isSuperAdmin && auth.username !== "admin" && auth.username !== "WisamalBani")) {
-    return res.status(401).json({ success: false, message: "Unauthorized: Super Admin only." });
+  if (!auth || !auth.isSuperAdmin) {
+    return res.status(403).json({ success: false, message: "Unauthorized: Super Admin only." });
   }
 
   try {
@@ -400,7 +409,20 @@ router.post("/api/auth/login", async (req, res) => {
 // Change Password
 router.post("/api/auth/change-password", async (req, res) => {
   const { auth, role, userId, newPassword } = req.body;
-  if (!auth || !role || !userId || !newPassword) {
+  
+  if (!auth || !auth.userId) return res.status(401).json({ success: false, message: "غير مصرح" });
+
+  if (!auth.isSuperAdmin) {
+    if (Number(userId) !== Number(auth.userId) || role !== auth.role) {
+      return res.status(403).json({ success: false, message: "غير مصرح لك بتغيير كلمة مرور حساب آخر" });
+    }
+  }
+
+  if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+    return res.status(400).json({ success: false, message: "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل" });
+  }
+
+  if (!role || !userId) {
     return res.status(400).json({ success: false, message: "بيانات غير مكتملة لتغيير كلمة المرور." });
   }
 

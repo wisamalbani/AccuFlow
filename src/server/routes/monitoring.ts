@@ -131,7 +131,7 @@ router.get("/api/health", (req, res) => {
 router.get("/api/monitoring/audit-log", async (req, res) => {
   const tokenUser = (req as any).body?.auth || {};
 
-  if (!tokenUser.isSuperAdmin && tokenUser.username !== "admin" && tokenUser.username !== "WisamalBani") {
+  if (!tokenUser || !tokenUser.isSuperAdmin) {
     return res.status(401).json({ success: false, message: "Super Admin only." });
   }
 

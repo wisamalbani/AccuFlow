@@ -259,7 +259,7 @@ router.post("/api/wallet/decline-deposit", async (req, res) => {
 router.get("/api/wallet/pending-deposits", async (req, res) => {
   const tokenUser = (req as any).body?.auth || {};
 
-  if (!tokenUser.isSuperAdmin && tokenUser.username !== "admin" && tokenUser.username !== "WisamalBani") {
+  if (!tokenUser || !tokenUser.isSuperAdmin) {
     return res.status(401).json({ success: false, message: "Super Admin only." });
   }
 
