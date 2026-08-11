@@ -73,21 +73,30 @@ export async function authMiddleware(req: any, res: any, next: any) {
     "/api/auth/register",
     "/api/public/managers",
     "/api/clients/details-form",
-    "/api/transactions/save",
-    "/api/transactions/save-complex",
-    "/api/transactions/statement",
-    "/api/transactions/manager-statement",
   ];
 
   if (publicPaths.includes(req.path) || req.path.startsWith("/api/public/")) {
     return next();
   }
 
+  const optionalAuthPaths = [
+    "/api/transactions/save",
+    "/api/transactions/save-complex",
+    "/api/transactions/statement",
+    "/api/transactions/manager-statement",
+  ];
+
   let token = "";
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
     token = req.headers.authorization.split(" ")[1];
   } else if (req.body && req.body.auth && req.body.auth.token) {
     token = req.body.auth.token;
+  }
+
+  if (optionalAuthPaths.includes(req.path) && !token) {
+    if (!req.body) req.body = {};
+    req.body.auth = null;
+    return next();
   }
 
   if (!token) {

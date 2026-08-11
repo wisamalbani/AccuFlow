@@ -3,7 +3,47 @@ import { getSupabase } from "../db";
 import { logAudit } from "../audit";
 import { sendTelegram, editTelegramMessage, getTransactionChatIds, formatTransactionMessage, updateTelegramNotificationsForTx, validateFileSize } from "../helpers";
 
+const publicSaveRateLimiter = new Map<string, { count: number, resetAt: number }>();
+
+function checkPublicSaveRateLimit(ip: string): boolean {
+  const now = Date.now();
+  let record = publicSaveRateLimiter.get(ip);
+  if (!record || now > record.resetAt) {
+    record = { count: 1, resetAt: now + 10 * 60 * 1000 };
+    publicSaveRateLimiter.set(ip, record);
+    return true;
+  }
+  if (record.count >= 100) return false;
+  record.count++;
+  return true;
+}
+
 const router = express.Router();
+
+async function authorizeClientAccess(supabase: any, auth: any, publicToken: any, clientId: any) {
+  const { data: clientRecord } = await supabase.from("clients")
+    .select("client_id, main_id, status, sys_status, public_access_token")
+    .eq("client_id", clientId);
+  if (!clientRecord || clientRecord.length === 0) return { ok: false, status: 404, message: "التاجر المستهدف غير موجود." };
+  const client = clientRecord[0];
+
+  if (auth && auth.userId) {
+    if (auth.isSuperAdmin) return { ok: true, client };
+    if (auth.role === "admin" && Number(auth.mainId) === Number(client.main_id)) return { ok: true, client };
+    if (auth.role === "accountant") {
+      const { data: link } = await supabase.from("accountant_clients").select("*")
+        .eq("accountant_id", auth.userId).eq("client_id", clientId).eq("status", "Active");
+      if (link && link.length > 0) return { ok: true, client };
+    }
+    return { ok: false, status: 403, message: "غير مصرح لك بالوصول لبيانات هذا التاجر." };
+  }
+
+  // زائر عام: يجب تطابق توكن البوابة
+  if (publicToken && client.public_access_token && String(publicToken) === String(client.public_access_token)) {
+    return { ok: true, client };
+  }
+  return { ok: false, status: 403, message: "رابط الوصول غير صالح أو منتهي." };
+}
 
 // Add transaction (voucher)
 router.post("/api/transactions/add", async (req, res) => {
@@ -31,6 +71,26 @@ router.post("/api/transactions/add", async (req, res) => {
     const client = clientRecord[0];
     if (client.status !== "Active" || client.sys_status !== "Active") {
       return res.json({ success: false, message: "هذا الحساب معطل حالياً ولا يستقبل أي عمليات ترحيل محاسبي." });
+    }
+
+    if (!auth.isSuperAdmin) {
+      if (auth.role === "admin") {
+        if (Number(auth.mainId) !== Number(client.main_id)) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك بإضافة سندات لهذا العميل." });
+        }
+      } else if (auth.role === "accountant") {
+        const { data: link } = await supabase
+          .from("accountant_clients")
+          .select("*")
+          .eq("accountant_id", auth.userId)
+          .eq("client_id", clientId)
+          .eq("status", "Active");
+        if (!link || link.length === 0) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك بإضافة سندات لهذا العميل." });
+        }
+      } else {
+        return res.status(403).json({ success: false, message: "غير مصرح لك بإضافة سندات لهذا العميل." });
+      }
     }
 
     // 2. Insert transaction
@@ -98,16 +158,22 @@ router.post("/api/transactions/edit", async (req, res) => {
     if (!existing || existing.length === 0) return res.json({ success: false, message: "السند غير موجود." });
 
     const tx = existing[0];
-    if (auth.role !== "admin" && auth.mainId !== tx.main_id) {
-      // Check if accountant has access to this client
-      const { data: link } = await supabase
-        .from("accountant_clients")
-        .select("*")
-        .eq("accountant_id", auth.userId)
-        .eq("client_id", tx.client_id)
-        .eq("status", "Active");
-
-      if (!link || link.length === 0) {
+    if (!auth.isSuperAdmin) {
+      if (auth.role === "admin") {
+        if (Number(auth.mainId) !== Number(tx.main_id)) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك بتعديل سندات هذا العميل." });
+        }
+      } else if (auth.role === "accountant") {
+        const { data: link } = await supabase
+          .from("accountant_clients")
+          .select("*")
+          .eq("accountant_id", auth.userId)
+          .eq("client_id", tx.client_id)
+          .eq("status", "Active");
+        if (!link || link.length === 0) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك بتعديل سندات هذا العميل." });
+        }
+      } else {
         return res.status(403).json({ success: false, message: "غير مصرح لك بتعديل سندات هذا العميل." });
       }
     }
@@ -171,16 +237,22 @@ router.post("/api/transactions/delete", async (req, res) => {
     if (!existing || existing.length === 0) return res.json({ success: false, message: "السند غير موجود." });
 
     const tx = existing[0];
-    if (auth.role !== "admin" && auth.mainId !== tx.main_id) {
-      // Check if accountant has access to this client
-      const { data: link } = await supabase
-        .from("accountant_clients")
-        .select("*")
-        .eq("accountant_id", auth.userId)
-        .eq("client_id", tx.client_id)
-        .eq("status", "Active");
-
-      if (!link || link.length === 0) {
+    if (!auth.isSuperAdmin) {
+      if (auth.role === "admin") {
+        if (Number(auth.mainId) !== Number(tx.main_id)) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك بحذف سندات هذا العميل." });
+        }
+      } else if (auth.role === "accountant") {
+        const { data: link } = await supabase
+          .from("accountant_clients")
+          .select("*")
+          .eq("accountant_id", auth.userId)
+          .eq("client_id", tx.client_id)
+          .eq("status", "Active");
+        if (!link || link.length === 0) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك بحذف سندات هذا العميل." });
+        }
+      } else {
         return res.status(403).json({ success: false, message: "غير مصرح لك بحذف سندات هذا العميل." });
       }
     }
@@ -201,12 +273,19 @@ router.post("/api/transactions/delete", async (req, res) => {
 
 // Get manager-merchant specific subscription statement
 router.post("/api/transactions/manager-statement", async (req, res) => {
-  const { clientId, currency } = req.body;
+  const { clientId, currency, auth } = req.body;
+  const publicToken = req.body.publicToken || req.body.token;
   if (!clientId) return res.status(400).json({ success: false, message: "معرف العميل مطلوب." });
   
   try {
     const supabase = getSupabase();
     
+    const authResult = await authorizeClientAccess(supabase, auth, publicToken, clientId);
+    if (!authResult.ok) {
+      return res.status(authResult.status).json({ success: false, message: authResult.message });
+    }
+    const client = authResult.client;
+
     // Fetch only subscription/payment logs between manager and merchant
     let query = supabase
       .from("transactions")
@@ -234,14 +313,26 @@ router.post("/api/transactions/client", async (req, res) => {
     const supabase = getSupabase();
     
     // Check access
-    if (auth.role !== "admin" && !auth.isSuperAdmin) {
-      const { data: link } = await supabase
-        .from("accountant_clients")
-        .select("*")
-        .eq("accountant_id", auth.userId)
-        .eq("client_id", cid)
-        .eq("status", "Active");
-      if (!link || link.length === 0) {
+    const { data: clientRecord } = await supabase.from("clients").select("main_id").eq("client_id", cid);
+    if (!clientRecord || clientRecord.length === 0) return res.status(404).json({ success: false, message: "العميل غير موجود." });
+    const client = clientRecord[0];
+
+    if (!auth.isSuperAdmin) {
+      if (auth.role === "admin") {
+        if (Number(auth.mainId) !== Number(client.main_id)) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك." });
+        }
+      } else if (auth.role === "accountant") {
+        const { data: link } = await supabase
+          .from("accountant_clients")
+          .select("*")
+          .eq("accountant_id", auth.userId)
+          .eq("client_id", cid)
+          .eq("status", "Active");
+        if (!link || link.length === 0) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك." });
+        }
+      } else {
         return res.status(403).json({ success: false, message: "غير مصرح لك." });
       }
     }
@@ -283,15 +374,23 @@ router.post("/api/transactions/update-status", async (req, res) => {
     const tx = existing[0];
 
     // Check access
-    if (auth.role !== "admin" && !auth.isSuperAdmin) {
-      const { data: link } = await supabase
-        .from("accountant_clients")
-        .select("*")
-        .eq("accountant_id", auth.userId)
-        .eq("client_id", tx.client_id)
-        .eq("status", "Active");
-      if (!link || link.length === 0) {
-        return res.status(403).json({ success: false, message: "غير مصرح لك." });
+    if (!auth.isSuperAdmin) {
+      if (auth.role === "admin") {
+        if (Number(auth.mainId) !== Number(tx.main_id)) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك بتعديل حالة هذا السند." });
+        }
+      } else if (auth.role === "accountant") {
+        const { data: link } = await supabase
+          .from("accountant_clients")
+          .select("*")
+          .eq("accountant_id", auth.userId)
+          .eq("client_id", tx.client_id)
+          .eq("status", "Active");
+        if (!link || link.length === 0) {
+          return res.status(403).json({ success: false, message: "غير مصرح لك بتعديل حالة هذا السند." });
+        }
+      } else {
+        return res.status(403).json({ success: false, message: "غير مصرح لك بتعديل حالة هذا السند." });
       }
     }
 
@@ -310,40 +409,21 @@ router.post("/api/transactions/update-status", async (req, res) => {
   }
 });
 
-// Get manager-merchant specific subscription statement
-router.post("/api/transactions/manager-statement", async (req, res) => {
-  const { clientId, currency } = req.body;
-  if (!clientId) return res.status(400).json({ success: false, message: "معرف العميل مطلوب." });
-  
-  try {
-    const supabase = getSupabase();
-    
-    // Fetch only subscription/payment logs between manager and merchant
-    let query = supabase
-      .from("transactions")
-      .select("*")
-      .eq("client_id", clientId)
-      .or('notes.ilike.%اشتراك%,notes.ilike.%دفعة%,notes.ilike.%استحقاق%');
-      
-    if (currency) query = query.eq("currency", currency);
-    
-    const { data, error } = await query.order("created_at", { ascending: true });
-    
-    if (error) throw error;
-    return res.json({ success: true, data: data || [] });
-  } catch (err: any) {
-    return res.json({ success: false, message: err.message });
-  }
-});
-
 // Get client statement (Kashf Hisab)
 router.post("/api/transactions/statement", async (req, res) => {
-  const { clientId, currency, startDate, endDate } = req.body;
+  const { clientId, currency, startDate, endDate, auth } = req.body;
+  const publicToken = req.body.publicToken || req.body.token;
   if (!clientId) return res.status(400).json({ success: false, message: "معرف العميل مطلوب." });
 
   try {
     const supabase = getSupabase();
     
+    const authResult = await authorizeClientAccess(supabase, auth, publicToken, clientId);
+    if (!authResult.ok) {
+      return res.status(authResult.status).json({ success: false, message: authResult.message });
+    }
+    const client = authResult.client;
+
     // Fetch transaction logs with attachments
     let query = supabase
       .from("transactions")
@@ -390,7 +470,8 @@ router.post("/api/transactions/statement", async (req, res) => {
 
 // Save Merchant Transaction (Single) - unauthenticated via portal
 router.post("/api/transactions/save", async (req, res) => {
-  const { clientId, txType, currency, amount, notes, fileData, fileName, mimeType } = req.body;
+  const { clientId, txType, currency, amount, notes, fileData, fileName, mimeType, auth } = req.body;
+  const publicToken = req.body.publicToken || req.body.token;
 
   if (!clientId || !txType || !currency || !amount) {
     return res.status(400).json({ success: false, message: "بيانات السند غير مكتملة." });
@@ -401,14 +482,22 @@ router.post("/api/transactions/save", async (req, res) => {
     return res.status(400).json({ success: false, message: "حجم الملف يتجاوز الحد المسموح (10MB)" });
   }
 
+  if (!auth) {
+    const ip = req.ip || req.connection?.remoteAddress || "0.0.0.0";
+    if (!checkPublicSaveRateLimit(ip)) {
+      return res.status(429).json({ success: false, message: "طلبات كثيرة، حاول لاحقاً" });
+    }
+  }
+
   try {
     const supabase = getSupabase();
 
-    // Verify client is Active and checks
-    const { data: clientRecord } = await supabase.from("clients").select("*").eq("client_id", clientId);
-    if (!clientRecord || clientRecord.length === 0) return res.json({ success: false, message: "التاجر المستهدف غير موجود." });
+    const authResult = await authorizeClientAccess(supabase, auth, publicToken, clientId);
+    if (!authResult.ok) {
+      return res.status(authResult.status).json({ success: false, message: authResult.message });
+    }
+    const client = authResult.client;
 
-    const client = clientRecord[0];
     if (client.status !== "Active" || client.sys_status !== "Active") {
       return res.json({ success: false, message: "هذا الحساب معطل حالياً ولا يستقبل أي عمليات." });
     }
@@ -483,19 +572,29 @@ router.post("/api/transactions/save", async (req, res) => {
 
 // Save Complex Transactions (Multiple)
 router.post("/api/transactions/save-complex", async (req, res) => {
-  const { clientId, txArray, notes, fileData, fileName } = req.body;
+  const { clientId, txArray, notes, fileData, fileName, auth } = req.body;
+  const publicToken = req.body.publicToken || req.body.token;
   const transactions = txArray || req.body.transactions; // Support both
   if (!clientId || !transactions || transactions.length === 0) {
     return res.status(400).json({ success: false, message: "لا توجد سندات للحفظ." });
   }
 
+  if (!auth) {
+    const ip = req.ip || req.connection?.remoteAddress || "0.0.0.0";
+    if (!checkPublicSaveRateLimit(ip)) {
+      return res.status(429).json({ success: false, message: "طلبات كثيرة، حاول لاحقاً" });
+    }
+  }
+
   try {
     const supabase = getSupabase();
-    
-    const { data: clientRecord } = await supabase.from("clients").select("*").eq("client_id", clientId);
-    if (!clientRecord || clientRecord.length === 0) return res.json({ success: false, message: "التاجر المستهدف غير موجود." });
 
-    const client = clientRecord[0];
+    const authResult = await authorizeClientAccess(supabase, auth, publicToken, clientId);
+    if (!authResult.ok) {
+      return res.status(authResult.status).json({ success: false, message: authResult.message });
+    }
+    const client = authResult.client;
+
     if (client.status !== "Active" || client.sys_status !== "Active") {
       return res.json({ success: false, message: "هذا الحساب معطل حالياً." });
     }
@@ -610,12 +709,6 @@ router.get("/api/transactions/all-approved", async (req, res) => {
 });
 
 
-router.get("/api/debug/attachments", async (req, res) => {
-  const supabase = getSupabase();
-  const { data } = await supabase.from("attachments").select("attachment_id:id, tx_id, file_name, size_mb").order("created_at", { ascending: false }).limit(10);
-  const { data: txs } = await supabase.from("transactions").select("tx_id, receipt_url").order("created_at", { ascending: false }).limit(10);
-  res.json({ attachments: data, txs });
-});
 
 export default router;
 

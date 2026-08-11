@@ -78,6 +78,7 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
   const [monthlyTxCount, setMonthlyTxCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [portalToken, setPortalToken] = useState<string | null>(null);
 
   // Single transaction form states
   const [singleType, setSingleType] = useState<"قبض" | "صرف">("قبض");
@@ -304,6 +305,8 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
     setLoading(true);
     try {
       const isToken = targetClientId && targetClientId.length > 20;
+      if (isToken) setPortalToken(targetClientId);
+      else setPortalToken(null);
       const res = await fetch(`/api/clients/details-form?${isToken ? "token" : "clientId"}=${targetClientId}`);
       const data = await res.json();
       if (data.success) {
@@ -382,6 +385,7 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: clientInfo ? clientInfo.client_id : targetClientId,
+          publicToken: portalToken,
           txType: singleType,
           currency: singleCur,
           amount: parseFloat(singleAmt),
@@ -444,6 +448,7 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: clientInfo ? clientInfo.client_id : targetClientId,
+          publicToken: portalToken,
           txArray,
           notes: exNotes || `تبديل عملة: قبض ${exInAmt} ${exInCur} مقابل صرف ${exOutAmt} ${exOutCur}`,
           fileData,
@@ -502,6 +507,7 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: clientInfo ? clientInfo.client_id : targetClientId,
+          publicToken: portalToken,
           txArray,
           notes: complexNotes,
           fileData,
@@ -559,6 +565,7 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           auth: { userId: targetClientId, role: "client" },
+          publicToken: portalToken,
           clientId: clientInfo ? clientInfo.client_id : targetClientId,
           currency: stCurrency,
           startDate: stStart || null,
@@ -586,6 +593,7 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           auth: { userId: targetClientId, role: "client" },
+          publicToken: portalToken,
           clientId: clientInfo ? clientInfo.client_id : targetClientId,
         }),
       });
