@@ -327,7 +327,7 @@ export async function deductFromWallet(mainId: number, amount: number, notes: st
       await supabase.from("wallet_transactions").insert([{
         main_id: mainId,
         amount: -bonusDeducted,
-        type: "deduct",
+        type: "deduct_bonus",
         description: bonusNote,
         target_type: type,
         target_id: relatedId || null,
@@ -343,7 +343,7 @@ export async function deductFromWallet(mainId: number, amount: number, notes: st
       await supabase.from("wallet_transactions").insert([{
         main_id: mainId,
         amount: -cashDeducted,
-        type: "deduct",
+        type: "deduct_balance",
         description: cashNote,
         target_type: type,
         target_id: relatedId || null,

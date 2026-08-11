@@ -63,7 +63,7 @@ router.post("/api/transactions/add", async (req, res) => {
   if (txType !== "قبض" && txType !== "صرف") {
     return res.status(400).json({ success: false, message: "النوع غير صالح." });
   }
-  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو") {
+  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو أوروبي") {
     return res.status(400).json({ success: false, message: "العملة غير صالحة." });
   }
 
@@ -176,7 +176,7 @@ router.post("/api/transactions/edit", async (req, res) => {
   if (txType !== "قبض" && txType !== "صرف") {
     return res.status(400).json({ success: false, message: "النوع غير صالح." });
   }
-  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو") {
+  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو أوروبي") {
     return res.status(400).json({ success: false, message: "العملة غير صالحة." });
   }
 
@@ -518,7 +518,7 @@ router.post("/api/transactions/save", async (req, res) => {
   if (txType !== "قبض" && txType !== "صرف") {
     return res.status(400).json({ success: false, message: "النوع غير صالح." });
   }
-  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو") {
+  if (currency !== "ليرة سورية" && currency !== "دولار أمريكي" && currency !== "يورو أوروبي") {
     return res.status(400).json({ success: false, message: "العملة غير صالحة." });
   }
 
@@ -644,7 +644,7 @@ router.post("/api/transactions/save-complex", async (req, res) => {
     if (tx.type !== "قبض" && tx.type !== "صرف") {
       return res.status(400).json({ success: false, message: "النوع غير صالح." });
     }
-    if (tx.currency !== "ليرة سورية" && tx.currency !== "دولار أمريكي" && tx.currency !== "يورو") {
+    if (tx.currency !== "ليرة سورية" && tx.currency !== "دولار أمريكي" && tx.currency !== "يورو أوروبي") {
       return res.status(400).json({ success: false, message: "العملة غير صالحة." });
     }
   }
@@ -676,8 +676,8 @@ router.post("/api/transactions/save-complex", async (req, res) => {
       const { count } = await supabase.from("transactions").select("*", { count: "exact", head: true })
         .eq("client_id", clientId)
         .gte("created_at", firstDay.toISOString());
-      if ((count || 0) >= (client.tx_limit || 50)) {
-        return res.status(403).json({ success: false, message: "🔒 وصلت للحد الأقصى للباقة المجانية (50 حركة شهرياً). يرجى الترقية للباقة المدفوعة عبر المدير المالي." });
+      if ((count || 0) + transactions.length > (client.tx_limit || 50)) {
+        return res.status(400).json({ success: false, message: "🔒 وصلت للحد الأقصى للباقة المجانية (50 حركة شهرياً). يرجى الترقية للباقة المدفوعة عبر المدير المالي." });
       }
     }
 

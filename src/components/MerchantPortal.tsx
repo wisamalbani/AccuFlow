@@ -181,6 +181,19 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
   const filteredStatementTxs = React.useMemo(() => {
     if (!statementData || !statementData.transactions) return [];
     let list = [...statementData.transactions];
+    list.sort((a: any, b: any) => {
+      const d1 = new Date(a.created_at).getTime();
+      const d2 = new Date(b.created_at).getTime();
+      return d1 - d2 || a.tx_id - b.tx_id;
+    });
+    let rBal = statementData.previousBalance || 0;
+    list.forEach(tx => {
+      const amt = parseFloat(tx.amount || 0);
+      if (tx.tx_type === "قبض") rBal += amt;
+      else rBal -= amt;
+      tx.runningBal = rBal;
+    });
+
 
     if (stSearchQuery.trim()) {
       const q = stSearchQuery.trim().toLowerCase();
@@ -242,6 +255,21 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
   const filteredManagerStatementTxs = React.useMemo(() => {
     if (!managerStatementData) return [];
     let list = [...managerStatementData];
+    list.sort((a: any, b: any) => {
+      const d1 = new Date(a.created_at).getTime();
+      const d2 = new Date(b.created_at).getTime();
+      return d1 - d2 || a.tx_id - b.tx_id;
+    });
+    const currencyBals: Record<string, number> = {};
+    list.forEach(tx => {
+      const curr = tx.currency || "USD";
+      if (!currencyBals[curr]) currencyBals[curr] = 0;
+      const amt = parseFloat(tx.amount || 0);
+      if (tx.tx_type === "قبض") currencyBals[curr] += amt;
+      else currencyBals[curr] -= amt;
+      tx.runningBal = currencyBals[curr];
+    });
+
 
     if (mgrStSearchQuery.trim()) {
       const q = mgrStSearchQuery.trim().toLowerCase();
@@ -542,12 +570,31 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
     if (fileData.startsWith("data:application/pdf")) {
       const newTab = window.open();
       if (newTab) {
-        newTab.document.write(`<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+        const doc = newTab.document;
+        doc.title = fileName || "Attachment";
+        const iframe = doc.createElement("iframe");
+        iframe.src = fileData;
+        iframe.frameBorder = "0";
+        iframe.style.cssText = "border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position:absolute;";
+        iframe.allowFullscreen = true;
+        doc.body.appendChild(iframe);
       }
     } else if (fileData.startsWith("data:image")) {
       const newTab = window.open();
       if (newTab) {
-        newTab.document.write(`<img src="${fileData}" alt="${fileName}" style="max-width: 100%; height: auto;" />`);
+        const doc = newTab.document;
+        doc.title = fileName || "Attachment";
+        doc.body.style.margin = "0";
+        doc.body.style.display = "flex";
+        doc.body.style.justifyContent = "center";
+        doc.body.style.alignItems = "center";
+        doc.body.style.backgroundColor = "#0f172a";
+        const img = doc.createElement("img");
+        img.src = fileData;
+        img.alt = fileName || "Attachment";
+        img.style.maxWidth = "100%";
+        img.style.height = "auto";
+        doc.body.appendChild(img);
       }
     } else {
       const a = document.createElement("a");
@@ -1281,15 +1328,9 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
                           <tbody className="divide-y divide-slate-100 text-sm">
                             {filteredManagerStatementTxs.length > 0 ? (
                               (() => {
-                                let currentBal = 0;
                                 return filteredManagerStatementTxs.map((tx: any, idx: number) => {
                                   const isPositive = tx.tx_type === "قبض";
-                                  const amount = Number(tx.amount);
-                                  if (isPositive) {
-                                    currentBal += amount;
-                                  } else {
-                                    currentBal -= amount;
-                                  }
+                                  const currentBal = tx.runningBal || 0;
                                   return (
                                     <tr key={tx.tx_id || idx} className="hover:bg-slate-50/50">
                                       <td className="p-3 text-slate-400 font-mono text-xs">{formatDate(tx.created_at)}</td>
@@ -1574,11 +1615,8 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
                         {/* Transaction Rows */}
                         {filteredStatementTxs.length > 0 ? (
                           (() => {
-                            let currentBal = statementData.previousBalance;
                             return filteredStatementTxs.map((tx: any) => {
-                              const amt = parseFloat(tx.amount || 0);
-                              if (tx.tx_type === "قبض") currentBal += amt;
-                              else currentBal -= amt;
+                              const currentBal = tx.runningBal || 0;
 
                               const statusVal = tx.status || "غير مرحل";
 

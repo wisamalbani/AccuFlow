@@ -195,7 +195,7 @@ router.post("/api/profile/update-featured", async (req, res) => {
 
 // Change password
 router.post("/api/profile/change-password", async (req, res) => {
-  const { auth, oldPassword, newPassword } = req.body; console.log("change pw auth:", auth);
+  const { auth, oldPassword, newPassword } = req.body;
   if (!auth) return res.status(401).json({ success: false, message: "غير مصرح." });
 
   if (!oldPassword || !newPassword) {

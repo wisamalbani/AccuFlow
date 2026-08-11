@@ -387,9 +387,10 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
   const [cardStatus, setCardStatus] = useState<"Active" | "Inactive">("Active");
   const [cardIsEditing, setCardIsEditing] = useState(false);
   const [cardStorageLimit, setCardStorageLimit] = useState("25");
+  const [originalStorageLimit, setOriginalStorageLimit] = useState("25");
 
   // Open detailed client card helper
-  const openSelectedClientCard = (c: ClientMerchant) => {
+  const openSelectedClientCard = async (c: ClientMerchant) => {
     setSelectedClientForCard(c);
     setCardCompanyName(c.company_name);
     setCardPhone(c.phone);
@@ -403,6 +404,19 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
     setCardIsEditing(false);
     setSubAmount("");
     setSubNotes("");
+    
+    // Fetch storage limit
+    setCardStorageLimit("25");
+    setOriginalStorageLimit("25");
+    try {
+      const res = await fetch("/api/settings");
+      const data = await res.json();
+      if (data.success && data.settings) {
+        const limit = data.settings[`storage_limit_${c.client_id}`] || "25";
+        setCardStorageLimit(limit);
+        setOriginalStorageLimit(limit);
+      }
+    } catch (e) {}
   };
 
   // Card record transaction helper
@@ -420,7 +434,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          auth,
+          auth: effectiveAuth,
           id: selectedClientForCard.client_id,
           type,
           amount: amountVal,
@@ -478,12 +492,18 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
       const data = await res.json();
 
       if (data.success) {
-        if (isSuperAdmin && cardStorageLimit) {
-          fetch("/api/settings/update", {
+        if (isSuperAdmin && cardStorageLimit !== originalStorageLimit) {
+          const limitRes = await fetch("/api/settings/update", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ auth: effectiveAuth, key: `storage_limit_${selectedClientForCard.client_id}`, value: cardStorageLimit })
           });
+          const limitData = await limitRes.json();
+          if (!limitRes.ok || !limitData.success) {
+            triggerAlert("error", "حدث خطأ أثناء حفظ مساحة العميل.");
+            return;
+          }
+          setOriginalStorageLimit(cardStorageLimit);
         }
         triggerAlert("success", "✅ تم حفظ التعديلات وحيازة البيانات الجديدة للعميل بنجاح!");
 
@@ -1159,12 +1179,31 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
     if (fileData.startsWith("data:application/pdf")) {
       const newTab = window.open();
       if (newTab) {
-        newTab.document.write(`<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+        const doc = newTab.document;
+        doc.title = fileName || "Attachment";
+        const iframe = doc.createElement("iframe");
+        iframe.src = fileData;
+        iframe.frameBorder = "0";
+        iframe.style.cssText = "border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position:absolute;";
+        iframe.allowFullscreen = true;
+        doc.body.appendChild(iframe);
       }
     } else if (fileData.startsWith("data:image")) {
       const newTab = window.open();
       if (newTab) {
-        newTab.document.write(`<img src="${fileData}" alt="${fileName}" style="max-width: 100%; height: auto;" />`);
+        const doc = newTab.document;
+        doc.title = fileName || "Attachment";
+        doc.body.style.margin = "0";
+        doc.body.style.display = "flex";
+        doc.body.style.justifyContent = "center";
+        doc.body.style.alignItems = "center";
+        doc.body.style.backgroundColor = "#0f172a";
+        const img = doc.createElement("img");
+        img.src = fileData;
+        img.alt = fileName || "Attachment";
+        img.style.maxWidth = "100%";
+        img.style.height = "auto";
+        doc.body.appendChild(img);
       }
     } else {
       const a = document.createElement("a");
@@ -1626,7 +1665,22 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
       });
       const data = await res.json();
       if (data.success) {
-        setSubStatementTxs(data.data || []);
+        let rawTxs = data.data || [];
+        rawTxs.sort((a: any, b: any) => {
+          const d1 = new Date(a.created_at).getTime();
+          const d2 = new Date(b.created_at).getTime();
+          return d1 - d2 || a.tx_id - b.tx_id;
+        });
+        const currencyBals: Record<string, number> = {};
+        rawTxs.forEach((tx: any) => {
+          const curr = tx.currency || "USD";
+          if (!currencyBals[curr]) currencyBals[curr] = 0;
+          const amt = parseFloat(tx.amount || 0);
+          if (tx.tx_type === "قبض") currencyBals[curr] += amt;
+          else currencyBals[curr] -= amt;
+          tx.runningBal = currencyBals[curr];
+        });
+        setSubStatementTxs(rawTxs);
       } else {
         triggerAlert("error", "تعذر جلب كشف حساب التاجر.");
       }
@@ -2521,7 +2575,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                       💵 كشف الكاش ({wallet?.history ? wallet.history.filter((h: any) => {
                         const typeStr = String(h.type || "").toLowerCase();
                         const descStr = String(h.description || "");
-                        return !(typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية"));
+                        return !(typeStr.includes("bonus"));
                       }).length : 0})
                     </button>
 
@@ -2537,7 +2591,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                       🎁 كشف البونص ({wallet?.history ? wallet.history.filter((h: any) => {
                         const typeStr = String(h.type || "").toLowerCase();
                         const descStr = String(h.description || "");
-                        return typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية");
+                        return typeStr.includes("bonus");
                       }).length : 0})
                     </button>
 
@@ -2558,7 +2612,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                     const filteredForExport = (wallet?.history || []).filter((h: any) => {
                       const typeStr = String(h.type || "").toLowerCase();
                       const descStr = String(h.description || "");
-                      const isBonus = typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية");
+                      const isBonus = typeStr.includes("bonus");
                       if (walletLedgerTab === "cash" && isBonus) return false;
                       if (walletLedgerTab === "bonus" && !isBonus) return false;
 
@@ -2632,7 +2686,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                           const filteredHistory = wallet.history.filter((h: any) => {
                             const typeStr = String(h.type || "").toLowerCase();
                             const descStr = String(h.description || "");
-                            const isBonus = typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية");
+                            const isBonus = typeStr.includes("bonus");
                             if (walletLedgerTab === "cash" && isBonus) return false;
                             if (walletLedgerTab === "bonus" && !isBonus) return false;
 
@@ -2661,19 +2715,29 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                             );
                           }
 
-                          let runningSum = 0;
-                          const historyWithBal = [...filteredHistory].reverse().map(h => {
+                          const historyWithBal = filteredHistory.map((h: any) => {
                             const amount = parseFloat(h.amount || 0);
-                            runningSum += amount;
-                            return { ...h, calculatedBal: runningSum, numericAmt: amount };
-                          }).reverse();
+                            let displayBal = h.balance_after != null ? parseFloat(h.balance_after) : 0;
+                            if (h.balance_after == null) {
+                               let sum = 0;
+                               const allTxs = [...(wallet.history || [])].reverse();
+                               for (const tx of allTxs) {
+                                  sum += parseFloat(tx.amount || 0);
+                                  if (tx.id === h.id || tx.created_at === h.created_at) {
+                                     displayBal = sum;
+                                     break;
+                                  }
+                               }
+                            }
+                            return { ...h, calculatedBal: displayBal, numericAmt: amount };
+                          });
 
                           return historyWithBal.map((h: any, i: number) => {
                             const amount = h.numericAmt;
                             const displayBal = h.calculatedBal;
                             const typeStr = String(h.type || "").toLowerCase();
                             const descStr = String(h.description || "");
-                            const isBonus = typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص") || descStr.includes("هدية");
+                            const isBonus = typeStr.includes("bonus");
                             return (
                               <tr 
                                 key={i} 
@@ -4351,15 +4415,9 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {(() => {
-                      let currentBal = 0;
                       return subStatementTxs.map((tx: any) => {
                         const isPositive = tx.tx_type === "قبض";
-                        const amount = Number(tx.amount);
-                        if (isPositive) {
-                          currentBal += amount;
-                        } else {
-                          currentBal -= amount;
-                        }
+                        const currentBal = tx.runningBal || 0;
                         return (
                           <tr 
                             key={tx.tx_id} 
@@ -5482,7 +5540,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                         💵 كشف الكاش ({selectedManagerTransactions.filter((tx: any) => {
                           const typeStr = String(tx.type || "").toLowerCase();
                           const descStr = String(tx.description || "");
-                          return !(typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص"));
+                          return !(typeStr.includes("bonus"));
                         }).length})
                       </button>
                       <button
@@ -5497,7 +5555,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                         🎁 كشف البونص ({selectedManagerTransactions.filter((tx: any) => {
                           const typeStr = String(tx.type || "").toLowerCase();
                           const descStr = String(tx.description || "");
-                          return typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص");
+                          return typeStr.includes("bonus");
                         }).length})
                       </button>
                       <button
@@ -5527,7 +5585,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                         data={selectedManagerTransactions.filter((tx: any) => {
                           const typeStr = String(tx.type || "").toLowerCase();
                           const descStr = String(tx.description || "");
-                          const isBonus = typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص");
+                          const isBonus = typeStr.includes("bonus");
                           if (ownerStatementTab === "cash") return !isBonus;
                           if (ownerStatementTab === "bonus") return isBonus;
                           return true;
@@ -5585,7 +5643,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                         const isBonusTx = (tx: any) => {
                           const typeStr = String(tx.type || "").toLowerCase();
                           const descStr = String(tx.description || "");
-                          return typeStr.includes("bonus") || typeStr === "deduct bonus" || descStr.includes("بونص") || descStr.includes("مكافأة") || descStr.includes("البونص");
+                          return typeStr.includes("bonus");
                         };
 
                         const cashList = selectedManagerTransactions.filter((tx: any) => !isBonusTx(tx));
@@ -5594,13 +5652,22 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                         let displayList: any[] = [];
                         let sourceList = ownerStatementTab === "cash" ? cashList : ownerStatementTab === "bonus" ? bonusList : selectedManagerTransactions;
                         
-                        let runningSum = 0;
-                        displayList = [...sourceList].reverse().map((tx: any) => {
-                          const amt = parseFloat(parseCommasToNumberString(String(tx.amount || 0)));
-                          const isB = isBonusTx(tx);
-                          runningSum += amt;
-                          return { ...tx, numericAmt: amt, displayBal: runningSum, isBonus: isB };
-                        }).reverse();
+                          const historyWithBal = filteredHistory.map((h: any) => {
+                            const amount = parseFloat(h.amount || 0);
+                            let displayBal = h.balance_after != null ? parseFloat(h.balance_after) : 0;
+                            if (h.balance_after == null) {
+                               let sum = 0;
+                               const allTxs = [...(wallet.history || [])].reverse();
+                               for (const tx of allTxs) {
+                                  sum += parseFloat(tx.amount || 0);
+                                  if (tx.id === h.id || tx.created_at === h.created_at) {
+                                     displayBal = sum;
+                                     break;
+                                  }
+                               }
+                            }
+                            return { ...h, calculatedBal: displayBal, numericAmt: amount };
+                          });
 
                         return (
                           <table className="w-full text-right border-collapse wallet-transactions-table min-w-[680px]">
