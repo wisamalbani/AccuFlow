@@ -381,7 +381,12 @@ export async function getServicePrices(): Promise<{ clientPrice: number; account
   }
   return { clientPrice, accountantPrice };
 }
+let lastSubscriptionCheckDay = "";
 export async function checkAndDeactivateExpiredSubscriptions() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (lastSubscriptionCheckDay === today) return;
+  lastSubscriptionCheckDay = today;
+
   const supabase = getSupabase();
   const now = new Date().toISOString();
   

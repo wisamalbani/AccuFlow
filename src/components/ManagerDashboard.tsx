@@ -225,8 +225,7 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
   const [accountantSearch, setAccountantSearch] = useState("");
   const [managerSearch, setManagerSearch] = useState("");
   const [accMerchantSearch, setAccMerchantSearch] = useState(""); // Accountant modal search
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortAsc, setSortAsc] = useState<boolean>(true);
+  const [sortStates, setSortStates] = useState<Record<string, { field: string | null; asc: boolean }>>({});
 
   // Selected object for editing
   const [editId, setEditId] = useState<number | null>(null);
@@ -832,27 +831,32 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
   };
 
   // Sorting Header Trigger
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortField(field);
-      setSortAsc(true);
-    }
+  const handleSort = (tableId: string, field: string) => {
+    setSortStates((prev) => {
+      const currentState = prev[tableId] || { field: null, asc: true };
+      return {
+        ...prev,
+        [tableId]: {
+          field,
+          asc: currentState.field === field ? !currentState.asc : true,
+        },
+      };
+    });
   };
 
   // Sort helper
-  const getSortedData = <T extends any>(data: T[], defaultField: string): T[] => {
-    const field = sortField || defaultField;
+  const getSortedData = <T extends any>(data: T[], defaultField: string, tableId: string): T[] => {
+    const { field, asc } = sortStates[tableId] || { field: defaultField, asc: true };
+    const sortField = field || defaultField;
     return [...data].sort((a: any, b: any) => {
-      let valA = a[field];
-      let valB = b[field];
+      let valA = a[sortField];
+      let valB = b[sortField];
       if (valA === undefined || valA === null) valA = "";
       if (valB === undefined || valB === null) valB = "";
       if (typeof valA === "string") {
-        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
       } else {
-        return sortAsc ? valA - valB : valB - valA;
+        return asc ? valA - valB : valB - valA;
       }
     });
   };
@@ -1643,9 +1647,9 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
   );
 
   // Sorting columns dynamically
-  const sortedClients = getSortedData(searchedClients, "client_id") as ClientMerchant[];
-  const sortedAccountants = getSortedData(searchedAccountants, "accountant_id") as Accountant[];
-  const sortedAdmins = getSortedData(searchedAdmins, "main_id") as ManagerAdmin[];
+  const sortedClients = getSortedData(searchedClients, "client_id", "clients") as ClientMerchant[];
+  const sortedAccountants = getSortedData(searchedAccountants, "accountant_id", "accountants") as Accountant[];
+  const sortedAdmins = getSortedData(searchedAdmins, "main_id", "admins") as ManagerAdmin[];
 
   // --- SUB STATEMENT MODAL ---
   const [subStatementModalOpen, setSubStatementModalOpen] = useState(false);
@@ -1985,16 +1989,16 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                 <table className="w-full text-right border-collapse min-w-[700px]">
                   <thead>
                     <tr className="bg-slate-50 text-[15px] text-slate-400 border-b border-slate-100 font-extrabold select-none">
-                      <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("client_id")}>كود التاجر (ID)</th>
-                      <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("company_name")}>اسم المنشأة / التاجر</th>
+                      <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("clients", "client_id")}>كود التاجر (ID)</th>
+                      <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("clients", "company_name")}>اسم المنشأة / التاجر</th>
                       {isSuperAdmin && <th className="p-3.5 text-center text-[15px]">أضيف من قبل</th>}
                       {effectiveAuth.role === "accountant" && <th className="p-3.5 text-center text-[15px]">المحاسب الرئيسي</th>}
                       {effectiveAuth.role !== "accountant" && (
                         <>
-                          <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("phone")}>الجوال</th>
-                          <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("end_date")}>تاريخ الانتهاء</th>
-                          <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("subscription_value")}>الاشتراك</th>
-                          <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("paid_amount")}>المدفوع</th>
+                          <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("clients", "phone")}>الجوال</th>
+                          <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("clients", "end_date")}>تاريخ الانتهاء</th>
+                          <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("clients", "subscription_value")}>الاشتراك</th>
+                          <th className="p-3.5 cursor-pointer hover:bg-slate-100 text-center text-[15px]" onClick={() => handleSort("clients", "paid_amount")}>المدفوع</th>
                           <th className="p-3.5 text-center text-[15px]">بوابة العميل</th>
                         </>
                       )}
@@ -2191,11 +2195,11 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                 <table className="w-full text-right border-collapse min-w-[750px]">
                   <thead>
                     <tr className="bg-slate-50 text-[15px] text-slate-400 border-b border-slate-100 font-extrabold select-none">
-                      <th className="p-3.5 text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("accountant_id")}>المعرف (ID)</th>
-                      <th className="p-3.5 cursor-pointer hover:bg-slate-100" onClick={() => handleSort("full_name")}>اسم المحاسب الكامل</th>
-                      <th className="p-3.5 cursor-pointer hover:bg-slate-100" onClick={() => handleSort("username")}>اسم المستخدم الدخول</th>
+                      <th className="p-3.5 text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("accountants", "accountant_id")}>المعرف (ID)</th>
+                      <th className="p-3.5 cursor-pointer hover:bg-slate-100" onClick={() => handleSort("accountants", "full_name")}>اسم المحاسب الكامل</th>
+                      <th className="p-3.5 cursor-pointer hover:bg-slate-100" onClick={() => handleSort("accountants", "username")}>اسم المستخدم الدخول</th>
                       <th className="p-3.5 text-center">المنشآت المربوطة</th>
-                      <th className="p-3.5 cursor-pointer text-center hover:bg-slate-100" onClick={() => handleSort("salary")}>الراتب المعتمد</th>
+                      <th className="p-3.5 cursor-pointer text-center hover:bg-slate-100" onClick={() => handleSort("accountants", "salary")}>الراتب المعتمد</th>
                       <th className="p-3.5 text-center">الجوال تليغرام</th>
                       <th className="p-3.5 text-center">الحالة (تعديل مباشر)</th>
                     </tr>
@@ -2246,7 +2250,11 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                             <td className="p-3.5 text-center font-bold font-mono text-slate-700">{formatNumber(a.salary)}$</td>
                             <td className="p-3.5 text-center font-mono text-slate-500 font-medium">
                               <div className="text-[15px]">{a.phone || "بلا هاتف"}</div>
-                              <div className="text-[12px] text-blue-500 font-semibold">{a.telegram_id ? `@${a.telegram_id}` : "بلا تليجرام"}</div>
+                              <div className="text-[12px] text-blue-500 font-semibold">
+                                {a.telegram_id ? (
+                                  <a href={`https://t.me/${a.telegram_id}`} target="_blank" rel="noopener noreferrer">@{a.telegram_id}</a>
+                                ) : "بلا تليجرام"}
+                              </div>
                             </td>
                             
                             {/* Interactive status clickable badge (Req 20) */}
@@ -3052,8 +3060,8 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                 <table className="w-full text-right border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-slate-50 text-[10px] text-slate-400 border-b border-slate-100 font-extrabold select-none">
-                      <th className="p-3.5 text-[15px] text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("main_id")}>ID</th>
-                      <th className="p-3.5 text-[15px] text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("full_name")}>المدير المالي</th>
+                      <th className="p-3.5 text-[15px] text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("admins", "main_id")}>ID</th>
+                      <th className="p-3.5 text-[15px] text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("admins", "full_name")}>المدير المالي</th>
                       <th className="p-3.5 text-[15px] text-center">المنشآت</th>
                       <th className="p-3.5 text-[15px] text-center">المحاسبين</th>
                       <th className="p-3.5 text-[15px] text-center">المحفظة ($)</th>

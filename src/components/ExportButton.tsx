@@ -8,7 +8,6 @@ interface ExportButtonProps {
   filename: string;
   columns: StatementColumn[];
   data: any[];
-  elementId?: string;
   className?: string;
   buttonText?: string;
 }

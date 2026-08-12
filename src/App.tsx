@@ -29,7 +29,24 @@ export default function App() {
     const clientParam = urlParams.get("client");
     if (clientParam) {
       setClientUrlParam(clientParam);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
+
+    // 1.5 Intercept fetch for 401/403 session errors
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      const url = typeof args[0] === "string" ? args[0] : (args[0] instanceof Request ? args[0].url : "");
+      if ((response.status === 401 || response.status === 403) && url.includes("/api/") && localStorage.getItem("accountingToken")) {
+        const cloned = response.clone(); // use clone to not consume the original response just in case
+        localStorage.removeItem("accountingUser");
+        localStorage.removeItem("accountingRole");
+        localStorage.removeItem("isSuperAdmin");
+        localStorage.removeItem("accountingToken");
+        window.location.href = window.location.pathname;
+      }
+      return response;
+    };
 
     // 2. Fetch authenticated session from localStorage
     const savedUser = localStorage.getItem("accountingUser");
@@ -56,6 +73,10 @@ export default function App() {
       setShowDirectory(true);
     }
     setLoading(false);
+
+    return () => {
+      window.fetch = originalFetch;
+    };
   }, []);
 
   const handleLoginSuccess = (user: any, role: string, isSuperAdmin: boolean, token: string) => {

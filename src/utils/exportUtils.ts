@@ -136,17 +136,18 @@ export async function exportToPdf(
   const imgWidth = canvas.width;
   const imgHeight = canvas.height;
 
-  // A4 dimensions in mm
-  const pdfWidth = 210;
-  const pdfHeight = (imgHeight * pdfWidth) / imgWidth;
-
+  const orientation = imgHeight > imgWidth ? "portrait" : "landscape";
   const pdf = new jsPDF({
-    orientation: pdfHeight > pdfWidth ? "portrait" : "landscape",
+    orientation: orientation,
     unit: "mm",
     format: "a4",
   });
 
-  const pageHeight = 295;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const pdfWidth = pageWidth;
+  const pdfHeight = (imgHeight * pdfWidth) / imgWidth;
+
   let heightLeft = pdfHeight;
   let position = 0;
 
