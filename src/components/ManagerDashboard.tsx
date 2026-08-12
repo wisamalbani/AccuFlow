@@ -5649,25 +5649,21 @@ export default function ManagerDashboard({ auth, onLogout }: ManagerDashboardPro
                         const cashList = selectedManagerTransactions.filter((tx: any) => !isBonusTx(tx));
                         const bonusList = selectedManagerTransactions.filter(isBonusTx);
 
-                        let displayList: any[] = [];
-                        let sourceList = ownerStatementTab === "cash" ? cashList : ownerStatementTab === "bonus" ? bonusList : selectedManagerTransactions;
-                        
-                          const historyWithBal = filteredHistory.map((h: any) => {
-                            const amount = parseFloat(h.amount || 0);
-                            let displayBal = h.balance_after != null ? parseFloat(h.balance_after) : 0;
-                            if (h.balance_after == null) {
-                               let sum = 0;
-                               const allTxs = [...(wallet.history || [])].reverse();
-                               for (const tx of allTxs) {
-                                  sum += parseFloat(tx.amount || 0);
-                                  if (tx.id === h.id || tx.created_at === h.created_at) {
-                                     displayBal = sum;
-                                     break;
-                                  }
-                               }
-                            }
-                            return { ...h, calculatedBal: displayBal, numericAmt: amount };
-                          });
+                        const sourceList = ownerStatementTab === "cash" ? cashList : ownerStatementTab === "bonus" ? bonusList : selectedManagerTransactions;
+                        // رصيد تراكمي من الأقدم للأحدث على كامل القائمة (مثل كشف المحفظة الآخر)
+                        const oldestFirst = [...selectedManagerTransactions].reverse();
+                        let runningSum = 0;
+                        const balMap = new Map<any, number>();
+                        for (const tx of oldestFirst) {
+                          runningSum += parseFloat(tx.amount || 0);
+                          balMap.set(tx.id ?? tx.created_at, runningSum);
+                        }
+                        const displayList = sourceList.map((tx: any) => ({
+                          ...tx,
+                          isBonus: isBonusTx(tx),
+                          numericAmt: parseFloat(tx.amount || 0),
+                          displayBal: tx.balance_after != null ? parseFloat(tx.balance_after) : (balMap.get(tx.id ?? tx.created_at) ?? 0),
+                        }));
 
                         return (
                           <table className="w-full text-right border-collapse wallet-transactions-table min-w-[680px]">

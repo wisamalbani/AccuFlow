@@ -1617,6 +1617,7 @@ export default function MerchantPortal({ auth, onLogout, clientIdFromUrl }: Merc
                           (() => {
                             return filteredStatementTxs.map((tx: any) => {
                               const currentBal = tx.runningBal || 0;
+                              const amt = parseFloat(tx.amount || 0);
 
                               const statusVal = tx.status || "غير مرحل";
 
